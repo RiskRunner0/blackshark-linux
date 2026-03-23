@@ -1,0 +1,13 @@
+[package]
+name = "blackshark-tray"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "blackshark-tray"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+zbus = { version = "4", default-features = false, features = ["tokio"] }
+tokio = { version = "1", features = ["rt", "macros"] }

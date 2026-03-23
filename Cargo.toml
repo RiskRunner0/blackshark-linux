@@ -1,15 +1,9 @@
-[package]
-name = "blackshark-ctl"
-version = "0.1.0"
-edition = "2021"
-
-[[bin]]
-name = "blackshark-ctl"
-path = "src/main.rs"
-
-[dependencies]
-hidapi = "2"
-clap = { version = "4", features = ["derive"] }
-anyhow = "1"
-zbus = { version = "4", default-features = false, features = ["tokio"] }
-tokio = { version = "1", features = ["rt", "macros"] }
+[workspace]
+members = [
+    "crates/protocol",
+    "crates/device",
+    "crates/blackshark-ctl",
+    "crates/blacksharkd",
+    "crates/blackshark-tray",
+]
+resolver = "2"

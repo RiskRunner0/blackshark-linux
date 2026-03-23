@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use hidapi::{HidApi, HidDevice};
 
-use crate::protocol::{Report, ResponseStatus, REPORT_LEN};
+use blackshark_protocol::{Report, ResponseStatus, REPORT_LEN};
 
 const VID: u16 = 0x1532;
 const PID: u16 = 0x0577;

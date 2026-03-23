@@ -1,8 +1,9 @@
 mod battery;
-mod device;
-mod protocol;
 
 use anyhow::Result;
+use blackshark_device as device;
+use blackshark_protocol::cmd;
+use blackshark_protocol::Report;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -22,7 +23,7 @@ enum Command {
         #[arg(value_name = "LEVEL", value_parser = clap::value_parser!(u8).range(0..=15))]
         level: u8,
     },
-    /// Query battery level (command bytes not yet confirmed — pending capture)
+    /// Query battery level
     Battery,
 }
 
@@ -42,14 +43,9 @@ fn main() -> Result<()> {
 }
 
 fn cmd_sidetone(dev: &hidapi::HidDevice, level: u8) -> Result<()> {
-    use protocol::cmd;
-    use protocol::Report;
-
-    // GET current value first (mirrors what Synapse does).
     let get = Report::new(0x60, cmd::SIDETONE_GET_CLASS, cmd::SIDETONE_ID, &[cmd::SIDETONE_GET_ARG, 0x00]);
     device::send(dev, &get)?;
 
-    // SET new value.
     let set = Report::new(0x60, cmd::SIDETONE_SET_CLASS, cmd::SIDETONE_ID, &[level, 0x00]);
     device::send(dev, &set)?;
 
@@ -60,6 +56,6 @@ fn cmd_sidetone(dev: &hidapi::HidDevice, level: u8) -> Result<()> {
 fn cmd_battery(dev: &hidapi::HidDevice) -> Result<()> {
     let state = battery::query(dev)?;
     let charging = if state.charging { " (charging)" } else { "" };
-    println!("battery: {:.0}%{charging}", state.percentage);
+    println!("battery: {}%{charging}", state.percentage);
     Ok(())
 }
