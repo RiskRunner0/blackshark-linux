@@ -72,12 +72,17 @@ struct blackshark_data {
 	struct delayed_work       battery_work;
 
 	/* Synchronisation between request sender and raw_event receiver */
-	struct mutex              req_lock;   /* serialise HID requests */
+	struct mutex              req_lock;    /* serialise HID requests */
 	struct completion         response;
 	u8                        resp_buf[BLACKSHARK_REPORT_LEN];
 	u8                        cmd_buf[BLACKSHARK_REPORT_LEN]; /* heap, DMA-safe */
 
-	/* Cached state (updated under req_lock or from battery_work) */
+	/*
+	 * Cached state — read from get_property (process context) and written
+	 * from raw_event (interrupt/softirq context) and battery_work (workqueue).
+	 * state_lock protects all fields below.
+	 */
+	spinlock_t state_lock;
 	u8   capacity;         /* 0–100 */
 	bool charging;
 	bool charging_known;   /* false until first cls=0x2a notification or query */
@@ -210,16 +215,21 @@ static int blackshark_query_battery(struct blackshark_data *data)
 	ret = blackshark_request(data, BATTERY_CLASS, BATTERY_CMD,
 				 args, sizeof(args));
 	if (!ret) {
-		/* Response args: [0]=percentage. Charging state is tracked
-		 * separately via blackshark_query_charging() and unsolicited
-		 * cls=0x2a notifications — do NOT overwrite it here. */
+		unsigned long flags;
+
+		spin_lock_irqsave(&data->state_lock, flags);
 		data->capacity = data->resp_buf[REP_ARGS];
 		data->present  = true;
+		spin_unlock_irqrestore(&data->state_lock, flags);
+
 		hid_info(data->hdev, "battery: %u%% charging=%d\n",
 			 data->capacity, data->charging);
 	} else {
-		/* Headset is off or out of range */
+		unsigned long flags;
+
+		spin_lock_irqsave(&data->state_lock, flags);
 		data->present = false;
+		spin_unlock_irqrestore(&data->state_lock, flags);
 	}
 	mutex_unlock(&data->req_lock);
 
@@ -256,10 +266,14 @@ static int blackshark_query_charging(struct blackshark_data *data)
 	ret = blackshark_request(data, CHARGING_CLASS, CHARGING_GET_CMD,
 				 args, sizeof(args));
 	if (!ret) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&data->state_lock, flags);
 		data->charging       = data->resp_buf[REP_ARGS] != 0;
 		data->charging_known = true;
+		spin_unlock_irqrestore(&data->state_lock, flags);
 		hid_info(data->hdev, "initial charging state: %s\n",
-			 data->charging ? "charging" : "discharging");
+			 data->resp_buf[REP_ARGS] ? "charging" : "discharging");
 	} else {
 		hid_warn(data->hdev, "charging query failed: %d\n", ret);
 	}
@@ -295,6 +309,9 @@ static int blackshark_ps_get_property(struct power_supply *psy,
 				       union power_supply_propval *val)
 {
 	struct blackshark_data *data = power_supply_get_drvdata(psy);
+	unsigned long flags;
+
+	spin_lock_irqsave(&data->state_lock, flags);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -315,8 +332,11 @@ static int blackshark_ps_get_property(struct power_supply *psy,
 		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
 		break;
 	default:
+		spin_unlock_irqrestore(&data->state_lock, flags);
 		return -EINVAL;
 	}
+
+	spin_unlock_irqrestore(&data->state_lock, flags);
 	return 0;
 }
 
@@ -351,10 +371,12 @@ static int blackshark_raw_event(struct hid_device *hdev,
 		/* Unsolicited notification from the headset */
 		if (data[REP_CLASS] == CHARGING_CLASS &&
 		    data[REP_CMD]   == CHARGING_NOTIF_CMD) {
+			spin_lock(&d->state_lock);
 			d->charging       = data[REP_ARGS] != 0;
 			d->charging_known = true;
+			spin_unlock(&d->state_lock);
 			hid_info(hdev, "charging state: %s\n",
-				 d->charging ? "charging" : "discharging");
+				 data[REP_ARGS] ? "charging" : "discharging");
 			if (d->battery)
 				power_supply_changed(d->battery);
 			return 1;
@@ -384,6 +406,7 @@ static int blackshark_probe(struct hid_device *hdev,
 
 	data->hdev = hdev;
 	mutex_init(&data->req_lock);
+	spin_lock_init(&data->state_lock);
 	init_completion(&data->response);
 	INIT_DELAYED_WORK(&data->battery_work, blackshark_battery_work);
 
