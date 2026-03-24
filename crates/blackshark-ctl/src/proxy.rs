@@ -25,4 +25,8 @@ pub trait Headset {
     /// Cached sidetone level (0–15).
     #[zbus(property)]
     fn sidetone(&self) -> zbus::Result<u8>;
+
+    /// Emitted when the battery level changes.
+    #[zbus(signal)]
+    fn battery_changed(&self, percentage: u8, charging: bool) -> zbus::Result<()>;
 }
