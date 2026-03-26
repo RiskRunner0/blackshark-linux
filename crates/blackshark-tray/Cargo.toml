@@ -9,5 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"
+ksni = "0.2"
 zbus = { version = "4", default-features = false, features = ["tokio"] }
-tokio = { version = "1", features = ["rt", "macros"] }
+tokio = { version = "1", features = ["rt", "macros", "rt-multi-thread", "sync"] }
+futures-util = "0.3"
