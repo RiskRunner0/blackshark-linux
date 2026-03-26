@@ -69,7 +69,7 @@ impl Tray for BlacksharkTray {
         let description = if !s.connected {
             "Disconnected".into()
         } else {
-            let charging = if s.charging { " ⚡" } else { "" };
+            let charging = if s.charging { " (charging)" } else { "" };
             format!("{}%{} — Sidetone {}", s.battery_pct, charging, s.sidetone)
         };
         ksni::ToolTip {
@@ -86,7 +86,7 @@ impl Tray for BlacksharkTray {
         let battery_label = if !s.connected {
             "Not connected".into()
         } else {
-            let charging = if s.charging { " ⚡" } else { "" };
+            let charging = if s.charging { " (charging)" } else { "" };
             format!("Battery: {}%{}", s.battery_pct, charging)
         };
 

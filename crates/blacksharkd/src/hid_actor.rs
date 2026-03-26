@@ -291,6 +291,7 @@ fn query_battery(dev: &HidDevice) -> Result<BatteryState> {
     let response = device::send(dev, &report)?;
     let args     = response.args();
     anyhow::ensure!(args.len() >= 2, "battery response too short");
+    anyhow::ensure!(args[0] <= 100, "battery percentage out of range: {}", args[0]);
     Ok(BatteryState { percentage: args[0], charging: args[1] != 0x00 })
 }
 
@@ -383,5 +384,6 @@ fn query_sidetone(dev: &HidDevice) -> Result<u8> {
     let response = device::send(dev, &report)?;
     let args     = response.args();
     anyhow::ensure!(!args.is_empty(), "sidetone response empty");
+    anyhow::ensure!(args[0] <= cmd::SIDETONE_MAX, "sidetone out of range: {}", args[0]);
     Ok(args[0])
 }

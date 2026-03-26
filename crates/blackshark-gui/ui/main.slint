@@ -67,13 +67,12 @@ component DeviceTab inherits VerticalBox {
             if connected: HorizontalBox {
                 Text { text: "Battery:"; color: Palette.foreground; font-weight: 600; }
                 ProgressIndicator {
-                    progress: battery-pct / 100.0;
+                    progress: battery-pct > 100 ? 0.0 : battery-pct / 100.0;
                     width: 120px;
                 }
                 Text {
-                    text: charging
-                        ? battery-pct + "% ⚡"
-                        : battery-pct + "%";
+                    text: battery-pct > 100 ? "--" :
+                          charging ? battery-pct + "% (charging)" : battery-pct + "%";
                     color: Palette.foreground;
                 }
             }
