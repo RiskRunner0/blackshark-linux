@@ -12,7 +12,17 @@ use proxy::HeadsetProxy;
 // Shared state
 // ---------------------------------------------------------------------------
 
-const EQ_PRESET_NAMES: [&str; 5] = ["Flat", "Preset 1", "Preset 2", "Preset 3", "Preset 4"];
+const EQ_PRESET_NAMES: [&str; 9] = [
+    "Default",
+    "Game",
+    "Movie",
+    "Music",
+    "Counter-Strike 2",
+    "Valorant",
+    "Fortnite",
+    "Call of Duty",
+    "Apex Legends",
+];
 
 #[derive(Clone, Debug, Default)]
 struct HeadsetState {

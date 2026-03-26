@@ -210,7 +210,7 @@ component AudioTab inherits VerticalBox {
 
             HorizontalBox {
                 spacing: 8px;
-                for name[i] in ["Flat", "Preset 1", "Preset 2", "Preset 3", "Preset 4"]: Button {
+                for name[i] in ["Default", "Game", "Movie", "Music", "CS2"]: Button {
                     text: name;
                     enabled: connected;
                     primary: eq-preset == i;
@@ -220,11 +220,12 @@ component AudioTab inherits VerticalBox {
 
             Text {
                 text: {
-                    eq-preset == 0 ? "Flat — no EQ" :
-                    eq-preset == 1 ? "Bass and mid boost (+2, +2, +5, +5, +1, -1, +2, +3, +3)" :
-                    eq-preset == 2 ? "V-shape: boosted bass and treble, scooped mids" :
-                    eq-preset == 3 ? "Slight scoop: mild bass boost, reduced harshness" :
-                    eq-preset == 4 ? "Presence boost: lifted highs and upper-mids" : ""
+                    eq-preset == 0 ? "Default — flat, no EQ applied" :
+                    eq-preset == 1 ? "Game — bass and mid boost for immersive game audio" :
+                    eq-preset == 2 ? "Movie — V-shape: boosted bass and treble, scooped mids" :
+                    eq-preset == 3 ? "Music — mild bass boost, reduced harshness" :
+                    eq-preset == 4 ? "Counter-Strike 2 — presence boost, lifted highs for footstep clarity" :
+                    "Custom preset (band data not yet captured)"
                 };
                 color: Palette.foreground;
                 font-size: 11px;
