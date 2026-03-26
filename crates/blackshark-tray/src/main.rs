@@ -97,6 +97,7 @@ impl Tray for BlacksharkTray {
                             label:     if lvl == sidetone { format!("• {lvl}") } else { format!("  {lvl}") },
                             icon_name: String::new(),
                             activate:  Box::new(move |tray: &mut Self| {
+                                tray.state.lock().unwrap().sidetone = lvl;
                                 let conn = tray.conn.clone();
                                 tray.rt.spawn(async move {
                                     if let Ok(proxy) = HeadsetProxy::new(&conn).await {
@@ -117,6 +118,7 @@ impl Tray for BlacksharkTray {
             items.push(MenuItem::Standard(StandardItem {
                 label:    format!("THX Spatial: {}", if thx { "On ✓" } else { "Off" }),
                 activate: Box::new(move |tray: &mut Self| {
+                    tray.state.lock().unwrap().thx_enabled = !thx;
                     let conn = tray.conn.clone();
                     tray.rt.spawn(async move {
                         if let Ok(proxy) = HeadsetProxy::new(&conn).await {
@@ -133,6 +135,7 @@ impl Tray for BlacksharkTray {
             items.push(MenuItem::Standard(StandardItem {
                 label:    format!("ANC: {}", if anc { format!("On ✓ (level {anc_lvl})") } else { "Off".into() }),
                 activate: Box::new(move |tray: &mut Self| {
+                    tray.state.lock().unwrap().anc_enabled = !anc;
                     let conn = tray.conn.clone();
                     tray.rt.spawn(async move {
                         if let Ok(proxy) = HeadsetProxy::new(&conn).await {
@@ -156,6 +159,7 @@ impl Tray for BlacksharkTray {
                             label,
                             icon_name: String::new(),
                             activate:  Box::new(move |tray: &mut Self| {
+                                tray.state.lock().unwrap().power_savings = m;
                                 let conn = tray.conn.clone();
                                 tray.rt.spawn(async move {
                                     if let Ok(proxy) = HeadsetProxy::new(&conn).await {
