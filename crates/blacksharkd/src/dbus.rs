@@ -70,7 +70,7 @@ impl HeadsetInterface {
 
     /// Set Active Noise Cancellation. level = 1–4.
     async fn set_anc(&self, enabled: bool, level: u8) -> zbus::fdo::Result<()> {
-        if level < 1 || level > 4 {
+        if !(1..=4).contains(&level) {
             return Err(zbus::fdo::Error::InvalidArgs("level must be 1–4".into()));
         }
         let (tx, rx) = oneshot::channel();

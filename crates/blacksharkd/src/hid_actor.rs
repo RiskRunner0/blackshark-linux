@@ -252,6 +252,7 @@ fn run(
 ///   1. cls=0x02, flag=0x00 — device capability query (response = device is ready)
 ///   2. cls=0x2a, flag=0x00 — charging capability query
 ///   Then normal queries follow.
+///
 /// Placeholder — the RF link establishes automatically without init commands.
 /// Sending commands before the link is up pollutes the read buffer and causes
 /// subsequent battery reads to consume stale responses. We do nothing here and
