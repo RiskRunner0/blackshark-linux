@@ -47,6 +47,25 @@ async fn refresh_routing(
     .ok();
 }
 
+async fn systemctl(args: &[&str]) {
+    let _ = tokio::process::Command::new("systemctl")
+        .arg("--user")
+        .args(args)
+        .status()
+        .await;
+}
+
+async fn daemon_status() -> String {
+    let out = tokio::process::Command::new("systemctl")
+        .args(["--user", "is-active", "blacksharkd"])
+        .output()
+        .await;
+    match out {
+        Ok(o) => String::from_utf8(o.stdout).unwrap_or_default().trim().to_owned(),
+        Err(_) => "unknown".to_owned(),
+    }
+}
+
 /// Create null sinks and loopbacks; returns the list of module IDs created.
 async fn setup_sinks(mix: u8) -> Vec<u32> {
     let mut modules = Vec::new();
@@ -111,6 +130,9 @@ async fn main() -> Result<()> {
     // Initial routing view.
     window.set_streams(ModelRc::new(VecModel::from(fetch_streams().await)));
     window.set_rules(ModelRc::new(VecModel::from(Vec::<RouteRule>::new())));
+
+    // Initial daemon status.
+    window.set_daemon_status(daemon_status().await.into());
 
     // Wire up headset-control callbacks (go via D-Bus as before).
     {
@@ -363,6 +385,52 @@ async fn main() -> Result<()> {
                     }
                 }
             }
+        });
+    }
+
+    // Advanced tab: daemon controls.
+    {
+        let window_weak = window.as_weak();
+        window.on_start_daemon(move || {
+            let window_weak = window_weak.clone();
+            tokio::spawn(async move {
+                systemctl(&["start", "blacksharkd"]).await;
+                let status = daemon_status().await;
+                let w = window_weak.clone();
+                slint::invoke_from_event_loop(move || {
+                    if let Some(win) = w.upgrade() { win.set_daemon_status(status.into()); }
+                }).ok();
+            });
+        });
+    }
+
+    {
+        let window_weak = window.as_weak();
+        window.on_stop_daemon(move || {
+            let window_weak = window_weak.clone();
+            tokio::spawn(async move {
+                systemctl(&["stop", "blacksharkd"]).await;
+                let status = daemon_status().await;
+                let w = window_weak.clone();
+                slint::invoke_from_event_loop(move || {
+                    if let Some(win) = w.upgrade() { win.set_daemon_status(status.into()); }
+                }).ok();
+            });
+        });
+    }
+
+    {
+        let window_weak = window.as_weak();
+        window.on_restart_daemon(move || {
+            let window_weak = window_weak.clone();
+            tokio::spawn(async move {
+                systemctl(&["restart", "blacksharkd"]).await;
+                let status = daemon_status().await;
+                let w = window_weak.clone();
+                slint::invoke_from_event_loop(move || {
+                    if let Some(win) = w.upgrade() { win.set_daemon_status(status.into()); }
+                }).ok();
+            });
         });
     }
 

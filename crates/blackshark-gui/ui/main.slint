@@ -413,14 +413,54 @@ component StubTab inherits VerticalBox {
 // ---------------------------------------------------------------------------
 
 component AdvancedTab inherits ScrollView {
-    in property <bool> sinks-active;
+    in property <bool>   sinks-active;
+    in property <string> daemon-status;  // "active", "inactive", "failed", ...
+
     callback teardown-sinks();
     callback rebuild-sinks();
+    callback start-daemon();
+    callback stop-daemon();
+    callback restart-daemon();
 
     VerticalBox {
     width: parent.viewport-width;
     padding: 24px;
     spacing: 16px;
+
+    GroupBox {
+        title: "Daemon (blacksharkd)";
+        VerticalBox {
+            spacing: 12px;
+            HorizontalBox {
+                spacing: 8px;
+                Text { text: "Status:"; font-weight: 600; color: Palette.foreground; }
+                Text {
+                    text: daemon-status;
+                    color: daemon-status == "active" ? #4caf50
+                         : daemon-status == "failed"  ? #f44336
+                         : #888888;
+                }
+            }
+            HorizontalBox {
+                spacing: 8px;
+                alignment: start;
+                Button {
+                    text: "Start";
+                    enabled: daemon-status != "active";
+                    clicked => { start-daemon(); }
+                }
+                Button {
+                    text: "Stop";
+                    enabled: daemon-status == "active";
+                    clicked => { stop-daemon(); }
+                }
+                Button {
+                    text: "Restart";
+                    clicked => { restart-daemon(); }
+                }
+            }
+        }
+    }
 
     GroupBox {
         title: "PipeWire Sinks";
@@ -485,6 +525,7 @@ export component MainWindow inherits Window {
     in property <[SinkInputRow]> streams;
     in property <[RouteRule]>   rules;
     in property <bool>          sinks-active;
+    in property <string>        daemon-status;
 
     // Callbacks → Rust
     callback set-eq(int);
@@ -498,6 +539,9 @@ export component MainWindow inherits Window {
     callback set-power-savings(int);
     callback teardown-sinks();
     callback rebuild-sinks();
+    callback start-daemon();
+    callback stop-daemon();
+    callback restart-daemon();
 
     HorizontalBox {
         padding: 0;
@@ -581,8 +625,12 @@ export component MainWindow inherits Window {
         if active-tab == 5: StubTab { name: "Settings";   horizontal-stretch: 1; }
         if active-tab == 6: AdvancedTab {
             sinks-active:     sinks-active;
+            daemon-status:    daemon-status;
             teardown-sinks()  => { teardown-sinks(); }
             rebuild-sinks()   => { rebuild-sinks(); }
+            start-daemon()    => { start-daemon(); }
+            stop-daemon()     => { stop-daemon(); }
+            restart-daemon()  => { restart-daemon(); }
             horizontal-stretch: 1;
         }
     }
