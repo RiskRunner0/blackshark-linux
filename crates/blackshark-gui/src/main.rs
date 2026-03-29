@@ -101,7 +101,9 @@ async fn main() -> Result<()> {
                 window.set_power_savings(proxy.power_savings_minutes().await.unwrap_or(0) as i32);
 
                 let new_mods = setup_sinks(50).await;
+                let active = !new_mods.is_empty();
                 modules.lock().unwrap().extend(new_mods);
+                window.set_sinks_active(active);
             }
         }
     }
@@ -290,13 +292,22 @@ async fn main() -> Result<()> {
                                 (false, true) => {
                                     let mix = current_mix.load(Ordering::Relaxed);
                                     let new_mods = setup_sinks(mix).await;
+                                    let active = !new_mods.is_empty();
                                     modules.lock().unwrap().extend(new_mods);
+                                    let w = window_weak.clone();
+                                    slint::invoke_from_event_loop(move || {
+                                        if let Some(win) = w.upgrade() { win.set_sinks_active(active); }
+                                    }).ok();
                                 }
                                 (true, false) => {
                                     let mods: Vec<u32> = modules.lock().unwrap().drain(..).collect();
                                     for id in mods {
                                         pipewire::unload_module(id).await;
                                     }
+                                    let w = window_weak.clone();
+                                    slint::invoke_from_event_loop(move || {
+                                        if let Some(win) = w.upgrade() { win.set_sinks_active(false); }
+                                    }).ok();
                                 }
                                 _ => {}
                             }
@@ -352,6 +363,53 @@ async fn main() -> Result<()> {
                     }
                 }
             }
+        });
+    }
+
+    // Advanced tab: manual sink tear-down.
+    {
+        let modules = modules.clone();
+        let window_weak = window.as_weak();
+        window.on_teardown_sinks(move || {
+            let modules = modules.clone();
+            let window_weak = window_weak.clone();
+            tokio::spawn(async move {
+                let mods: Vec<u32> = modules.lock().unwrap().drain(..).collect();
+                for id in mods {
+                    pipewire::unload_module(id).await;
+                }
+                let w = window_weak.clone();
+                slint::invoke_from_event_loop(move || {
+                    if let Some(win) = w.upgrade() { win.set_sinks_active(false); }
+                }).ok();
+            });
+        });
+    }
+
+    // Advanced tab: manual sink rebuild.
+    {
+        let modules = modules.clone();
+        let current_mix = current_mix.clone();
+        let window_weak = window.as_weak();
+        window.on_rebuild_sinks(move || {
+            let modules = modules.clone();
+            let current_mix = current_mix.clone();
+            let window_weak = window_weak.clone();
+            tokio::spawn(async move {
+                // Tear down any existing modules first.
+                let mods: Vec<u32> = modules.lock().unwrap().drain(..).collect();
+                for id in mods {
+                    pipewire::unload_module(id).await;
+                }
+                let mix = current_mix.load(Ordering::Relaxed);
+                let new_mods = setup_sinks(mix).await;
+                let active = !new_mods.is_empty();
+                modules.lock().unwrap().extend(new_mods);
+                let w = window_weak.clone();
+                slint::invoke_from_event_loop(move || {
+                    if let Some(win) = w.upgrade() { win.set_sinks_active(active); }
+                }).ok();
+            });
         });
     }
 

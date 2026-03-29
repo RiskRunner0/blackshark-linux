@@ -402,6 +402,53 @@ component StubTab inherits VerticalBox {
 }
 
 // ---------------------------------------------------------------------------
+// Advanced tab
+// ---------------------------------------------------------------------------
+
+component AdvancedTab inherits VerticalBox {
+    in property <bool> sinks-active;
+    callback teardown-sinks();
+    callback rebuild-sinks();
+
+    padding: 24px;
+    spacing: 16px;
+
+    GroupBox {
+        title: "PipeWire Sinks";
+        VerticalBox {
+            spacing: 12px;
+            HorizontalBox {
+                spacing: 8px;
+                Text { text: "Status:"; font-weight: 600; color: Palette.foreground; }
+                Text {
+                    text: sinks-active ? "Active" : "Inactive";
+                    color: sinks-active ? #4caf50 : #f44336;
+                }
+            }
+            Text {
+                text: "Tear down and rebuild the blackshark-game / blackshark-chat PipeWire sinks. Use this if audio routing stops working.";
+                color: Palette.foreground;
+                wrap: word-wrap;
+            }
+            HorizontalBox {
+                spacing: 8px;
+                alignment: start;
+                Button {
+                    text: "Tear Down";
+                    clicked => { teardown-sinks(); }
+                }
+                Button {
+                    text: "Rebuild";
+                    clicked => { rebuild-sinks(); }
+                }
+            }
+        }
+    }
+
+    Rectangle { vertical-stretch: 1; }
+}
+
+// ---------------------------------------------------------------------------
 // Main window
 // ---------------------------------------------------------------------------
 
@@ -428,6 +475,7 @@ export component MainWindow inherits Window {
 
     in property <[SinkInputRow]> streams;
     in property <[RouteRule]>   rules;
+    in property <bool>          sinks-active;
 
     // Callbacks → Rust
     callback set-eq(int);
@@ -439,6 +487,8 @@ export component MainWindow inherits Window {
     callback set-thx(bool);
     callback set-anc(bool, int);
     callback set-power-savings(int);
+    callback teardown-sinks();
+    callback rebuild-sinks();
 
     HorizontalBox {
         padding: 0;
@@ -472,6 +522,7 @@ export component MainWindow inherits Window {
                 TabButton { label: "Routing";    active: active-tab == 3; clicked => { active-tab = 3; } }
                 TabButton { label: "Automation"; active: active-tab == 4; clicked => { active-tab = 4; } }
                 TabButton { label: "Settings";   active: active-tab == 5; clicked => { active-tab = 5; } }
+                TabButton { label: "Advanced";   active: active-tab == 6; clicked => { active-tab = 6; } }
 
                 Rectangle { vertical-stretch: 1; }
             }
@@ -519,5 +570,11 @@ export component MainWindow inherits Window {
         }
         if active-tab == 4: StubTab { name: "Automation"; horizontal-stretch: 1; }
         if active-tab == 5: StubTab { name: "Settings";   horizontal-stretch: 1; }
+        if active-tab == 6: AdvancedTab {
+            sinks-active:     sinks-active;
+            teardown-sinks()  => { teardown-sinks(); }
+            rebuild-sinks()   => { rebuild-sinks(); }
+            horizontal-stretch: 1;
+        }
     }
 }
