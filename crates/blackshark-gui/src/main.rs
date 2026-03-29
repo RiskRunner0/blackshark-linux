@@ -16,8 +16,8 @@ async fn fetch_streams() -> Vec<SinkInputRow> {
         .await
         .into_iter()
         .map(|s| SinkInputRow {
-            id:    s.id as i32,
-            name:  s.app_name.into(),
+            id: s.id as i32,
+            name: s.app_name.into(),
             route: s.route.into(),
         })
         .collect()
@@ -34,7 +34,7 @@ async fn refresh_routing(
         .iter()
         .map(|(name, route)| RouteRule {
             app_name: name.as_str().into(),
-            route:    route.as_str().into(),
+            route: route.as_str().into(),
         })
         .collect();
     let w = window_weak.clone();
@@ -61,7 +61,10 @@ async fn daemon_status() -> String {
         .output()
         .await;
     match out {
-        Ok(o) => String::from_utf8(o.stdout).unwrap_or_default().trim().to_owned(),
+        Ok(o) => String::from_utf8(o.stdout)
+            .unwrap_or_default()
+            .trim()
+            .to_owned(),
         Err(_) => "unknown".to_owned(),
     }
 }
@@ -101,10 +104,10 @@ async fn main() -> Result<()> {
     let window = MainWindow::new()?;
 
     // PipeWire state owned by the GUI process.
-    let modules: Arc<Mutex<Vec<u32>>>                    = Arc::new(Mutex::new(Vec::new()));
-    let rules:   Arc<Mutex<HashMap<String, String>>>     = Arc::new(Mutex::new(HashMap::new()));
-    let current_mix: Arc<AtomicU8>                       = Arc::new(AtomicU8::new(50));
-    let pipewire_enabled: Arc<AtomicBool>                = Arc::new(AtomicBool::new(false));
+    let modules: Arc<Mutex<Vec<u32>>> = Arc::new(Mutex::new(Vec::new()));
+    let rules: Arc<Mutex<HashMap<String, String>>> = Arc::new(Mutex::new(HashMap::new()));
+    let current_mix: Arc<AtomicU8> = Arc::new(AtomicU8::new(50));
+    let pipewire_enabled: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 
     // Load initial state from daemon.
     if let Ok(proxy) = HeadsetProxy::new(&conn).await {
@@ -140,8 +143,11 @@ async fn main() -> Result<()> {
                 let status = daemon_status().await;
                 let w = window_weak.clone();
                 slint::invoke_from_event_loop(move || {
-                    if let Some(win) = w.upgrade() { win.set_daemon_status(status.into()); }
-                }).ok();
+                    if let Some(win) = w.upgrade() {
+                        win.set_daemon_status(status.into());
+                    }
+                })
+                .ok();
             }
         });
     }
@@ -153,13 +159,24 @@ async fn main() -> Result<()> {
         tokio::spawn(async move {
             use tokio::io::AsyncBufReadExt;
             let mut child = match tokio::process::Command::new("journalctl")
-                .args(["--user", "-u", "blacksharkd", "-f", "-n", "100", "--no-pager"])
+                .args([
+                    "--user",
+                    "-u",
+                    "blacksharkd",
+                    "-f",
+                    "-n",
+                    "100",
+                    "--no-pager",
+                ])
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::null())
                 .spawn()
             {
                 Ok(c) => c,
-                Err(e) => { eprintln!("journalctl spawn failed: {e}"); return; }
+                Err(e) => {
+                    eprintln!("journalctl spawn failed: {e}");
+                    return;
+                }
             };
 
             let stdout = child.stdout.take().unwrap();
@@ -177,12 +194,16 @@ async fn main() -> Result<()> {
                 let w = window_weak.clone();
                 slint::invoke_from_event_loop(move || {
                     if let Some(win) = w.upgrade() {
-                        let items: Vec<LogLine> = strings.iter()
-                            .map(|s| LogLine { text: s.as_str().into() })
+                        let items: Vec<LogLine> = strings
+                            .iter()
+                            .map(|s| LogLine {
+                                text: s.as_str().into(),
+                            })
                             .collect();
                         win.set_log_lines(ModelRc::new(VecModel::from(items)));
                     }
-                }).ok();
+                })
+                .ok();
             }
         });
     }
@@ -269,7 +290,9 @@ async fn main() -> Result<()> {
             let window_weak = window_weak.clone();
             tokio::spawn(async move {
                 let inputs = pipewire::list_sink_inputs().await;
-                let Some(input) = inputs.iter().find(|s| s.id == id as u32) else { return };
+                let Some(input) = inputs.iter().find(|s| s.id == id as u32) else {
+                    return;
+                };
                 let app_name = input.app_name.clone();
 
                 let sink_name = match route.as_str() {
@@ -286,7 +309,10 @@ async fn main() -> Result<()> {
                     _ => return,
                 };
 
-                rules.lock().unwrap().insert(app_name.clone(), route.to_string());
+                rules
+                    .lock()
+                    .unwrap()
+                    .insert(app_name.clone(), route.to_string());
                 for inp in inputs.iter().filter(|s| s.app_name == app_name) {
                     pipewire::move_sink_input(inp.id, sink_name).await;
                 }
@@ -323,23 +349,25 @@ async fn main() -> Result<()> {
     // Background task: watch D-Bus signals and update UI.
     // Also manages PipeWire sink lifecycle on connect/disconnect.
     {
-        let window_weak      = window.as_weak();
-        let conn             = conn.clone();
-        let modules          = modules.clone();
-        let current_mix      = current_mix.clone();
+        let window_weak = window.as_weak();
+        let conn = conn.clone();
+        let modules = modules.clone();
+        let current_mix = current_mix.clone();
         let pipewire_enabled = pipewire_enabled.clone();
         tokio::spawn(async move {
             use futures_util::StreamExt;
-            let Ok(proxy) = HeadsetProxy::new(&conn).await else { return };
+            let Ok(proxy) = HeadsetProxy::new(&conn).await else {
+                return;
+            };
 
-            let mut battery_stream   = proxy.receive_battery_changed().await.ok();
+            let mut battery_stream = proxy.receive_battery_changed().await.ok();
             let mut connected_stream = proxy.receive_connected_changed().await;
-            let mut eq_stream        = proxy.receive_eq_preset_changed().await;
-            let mut sidetone_stream  = proxy.receive_sidetone_changed().await;
-            let mut thx_stream       = proxy.receive_thx_enabled_changed().await;
-            let mut anc_stream       = proxy.receive_anc_enabled_changed().await;
+            let mut eq_stream = proxy.receive_eq_preset_changed().await;
+            let mut sidetone_stream = proxy.receive_sidetone_changed().await;
+            let mut thx_stream = proxy.receive_thx_enabled_changed().await;
+            let mut anc_stream = proxy.receive_anc_enabled_changed().await;
             let mut anc_level_stream = proxy.receive_anc_level_changed().await;
-            let mut ps_stream        = proxy.receive_power_savings_minutes_changed().await;
+            let mut ps_stream = proxy.receive_power_savings_minutes_changed().await;
 
             loop {
                 tokio::select! {
@@ -454,8 +482,11 @@ async fn main() -> Result<()> {
                 let status = daemon_status().await;
                 let w = window_weak.clone();
                 slint::invoke_from_event_loop(move || {
-                    if let Some(win) = w.upgrade() { win.set_daemon_status(status.into()); }
-                }).ok();
+                    if let Some(win) = w.upgrade() {
+                        win.set_daemon_status(status.into());
+                    }
+                })
+                .ok();
             });
         });
     }
@@ -469,8 +500,11 @@ async fn main() -> Result<()> {
                 let status = daemon_status().await;
                 let w = window_weak.clone();
                 slint::invoke_from_event_loop(move || {
-                    if let Some(win) = w.upgrade() { win.set_daemon_status(status.into()); }
-                }).ok();
+                    if let Some(win) = w.upgrade() {
+                        win.set_daemon_status(status.into());
+                    }
+                })
+                .ok();
             });
         });
     }
@@ -484,8 +518,11 @@ async fn main() -> Result<()> {
                 let status = daemon_status().await;
                 let w = window_weak.clone();
                 slint::invoke_from_event_loop(move || {
-                    if let Some(win) = w.upgrade() { win.set_daemon_status(status.into()); }
-                }).ok();
+                    if let Some(win) = w.upgrade() {
+                        win.set_daemon_status(status.into());
+                    }
+                })
+                .ok();
             });
         });
     }
@@ -504,8 +541,11 @@ async fn main() -> Result<()> {
                 }
                 let w = window_weak.clone();
                 slint::invoke_from_event_loop(move || {
-                    if let Some(win) = w.upgrade() { win.set_sinks_active(false); }
-                }).ok();
+                    if let Some(win) = w.upgrade() {
+                        win.set_sinks_active(false);
+                    }
+                })
+                .ok();
             });
         });
     }
@@ -531,23 +571,26 @@ async fn main() -> Result<()> {
                 modules.lock().unwrap().extend(new_mods);
                 let w = window_weak.clone();
                 slint::invoke_from_event_loop(move || {
-                    if let Some(win) = w.upgrade() { win.set_sinks_active(active); }
-                }).ok();
+                    if let Some(win) = w.upgrade() {
+                        win.set_sinks_active(active);
+                    }
+                })
+                .ok();
             });
         });
     }
 
     // Toggle PipeWire routing on/off.
     {
-        let modules       = modules.clone();
-        let current_mix   = current_mix.clone();
+        let modules = modules.clone();
+        let current_mix = current_mix.clone();
         let pipewire_enabled = pipewire_enabled.clone();
-        let window_weak   = window.as_weak();
+        let window_weak = window.as_weak();
         window.on_toggle_pipewire(move |enable| {
-            let modules       = modules.clone();
-            let current_mix   = current_mix.clone();
+            let modules = modules.clone();
+            let current_mix = current_mix.clone();
             let pipewire_enabled = pipewire_enabled.clone();
-            let window_weak   = window_weak.clone();
+            let window_weak = window_weak.clone();
             tokio::spawn(async move {
                 pipewire_enabled.store(enable, Ordering::Relaxed);
                 if enable {
@@ -560,8 +603,11 @@ async fn main() -> Result<()> {
                         modules.lock().unwrap().extend(new_mods);
                         let w = window_weak.clone();
                         slint::invoke_from_event_loop(move || {
-                            if let Some(win) = w.upgrade() { win.set_sinks_active(active); }
-                        }).ok();
+                            if let Some(win) = w.upgrade() {
+                                win.set_sinks_active(active);
+                            }
+                        })
+                        .ok();
                     }
                 } else {
                     // Tear down sinks immediately.
@@ -571,8 +617,11 @@ async fn main() -> Result<()> {
                     }
                     let w = window_weak.clone();
                     slint::invoke_from_event_loop(move || {
-                        if let Some(win) = w.upgrade() { win.set_sinks_active(false); }
-                    }).ok();
+                        if let Some(win) = w.upgrade() {
+                            win.set_sinks_active(false);
+                        }
+                    })
+                    .ok();
                 }
             });
         });

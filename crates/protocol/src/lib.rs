@@ -31,7 +31,7 @@ impl Report {
         buf[0] = 0x02;
         buf[1] = 0x00;
         buf[2] = transaction_id;
-        buf[9]  = flags;
+        buf[9] = flags;
         buf[10] = class;
         buf[11] = 0x00;
         buf[12] = id;

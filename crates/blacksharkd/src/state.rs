@@ -14,14 +14,14 @@ pub struct SharedState {
 impl Default for SharedState {
     fn default() -> Self {
         Self {
-            connected:             false,
-            battery_pct:           0,
-            charging:              false,
-            sidetone:              0,
-            eq_preset:             0,
-            thx_enabled:           false,
-            anc_enabled:           false,
-            anc_level:             1,
+            connected: false,
+            battery_pct: 0,
+            charging: false,
+            sidetone: 0,
+            eq_preset: 0,
+            thx_enabled: false,
+            anc_enabled: false,
+            anc_level: 1,
             power_savings_minutes: 0,
         }
     }

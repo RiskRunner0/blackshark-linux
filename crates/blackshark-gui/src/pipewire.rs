@@ -25,15 +25,23 @@ pub async fn list_sink_inputs() -> Vec<SinkInput> {
         .await
     {
         Ok(o) => o,
-        Err(e) => { eprintln!("pactl list sink-inputs failed: {e}"); return vec![]; }
+        Err(e) => {
+            eprintln!("pactl list sink-inputs failed: {e}");
+            return vec![];
+        }
     };
 
     let json: serde_json::Value = match serde_json::from_slice(&output.stdout) {
         Ok(v) => v,
-        Err(e) => { eprintln!("failed to parse sink-inputs JSON: {e}"); return vec![]; }
+        Err(e) => {
+            eprintln!("failed to parse sink-inputs JSON: {e}");
+            return vec![];
+        }
     };
 
-    let Some(entries) = json.as_array() else { return vec![]; };
+    let Some(entries) = json.as_array() else {
+        return vec![];
+    };
 
     let mut result = Vec::new();
     for entry in entries {
@@ -63,7 +71,11 @@ pub async fn list_sink_inputs() -> Vec<SinkInput> {
             String::new()
         };
 
-        result.push(SinkInput { id, app_name, route });
+        result.push(SinkInput {
+            id,
+            app_name,
+            route,
+        });
     }
 
     result
@@ -213,7 +225,11 @@ pub async fn unload_module(id: u32) {
 pub async fn apply_mix_volumes(mix: u8) {
     let mix = mix.min(100);
     let game_pct: u32 = if mix >= 50 { 100 } else { mix as u32 * 2 };
-    let chat_pct: u32 = if mix <= 50 { 100 } else { (100 - mix as u32) * 2 };
+    let chat_pct: u32 = if mix <= 50 {
+        100
+    } else {
+        (100 - mix as u32) * 2
+    };
 
     for (sink, pct) in [("blackshark-game", game_pct), ("blackshark-chat", chat_pct)] {
         let _ = Command::new("pactl")

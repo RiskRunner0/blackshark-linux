@@ -18,7 +18,9 @@ pub fn open() -> Result<HidDevice> {
 pub fn send_probe(dev: &HidDevice, report: &Report) -> Result<()> {
     dev.write(report.as_bytes()).context("HID write failed")?;
     let mut buf = [0u8; REPORT_LEN];
-    let n = dev.read_timeout(&mut buf, 2_000).context("HID read failed")?;
+    let n = dev
+        .read_timeout(&mut buf, 2_000)
+        .context("HID read failed")?;
     if n != REPORT_LEN {
         bail!("short read: expected {REPORT_LEN} bytes, got {n}");
     }

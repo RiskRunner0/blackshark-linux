@@ -6,7 +6,10 @@ use zbus::Connection;
 use blackshark_client::HeadsetProxy;
 
 #[derive(Parser)]
-#[command(name = "blackshark-ctl", about = "Control the Razer BlackShark V3 Pro headset")]
+#[command(
+    name = "blackshark-ctl",
+    about = "Control the Razer BlackShark V3 Pro headset"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -54,7 +57,7 @@ enum Command {
 
 fn parse_bool(s: &str) -> Result<bool, String> {
     match s {
-        "on" | "true" | "1"  => Ok(true),
+        "on" | "true" | "1" => Ok(true),
         "off" | "false" | "0" => Ok(false),
         _ => Err(format!("expected on/off, got '{s}'")),
     }
@@ -91,12 +94,22 @@ async fn main() -> Result<()> {
         }
         Command::Anc { enabled, level } => {
             proxy.set_anc(enabled, level).await?;
-            println!("ANC: {} (level {level})", if enabled { "on" } else { "off" });
+            println!(
+                "ANC: {} (level {level})",
+                if enabled { "on" } else { "off" }
+            );
         }
         Command::PowerSavings { minutes } => {
             let m: u8 = minutes.parse().unwrap();
             proxy.set_power_savings(m).await?;
-            println!("power savings: {}", if m == 0 { "off".to_string() } else { format!("{m} min") });
+            println!(
+                "power savings: {}",
+                if m == 0 {
+                    "off".to_string()
+                } else {
+                    format!("{m} min")
+                }
+            );
         }
         Command::Status => cmd_status(&proxy).await?,
         Command::Monitor => cmd_monitor(&proxy).await?,
@@ -123,13 +136,13 @@ struct Status {
 
 async fn cmd_status(proxy: &HeadsetProxy<'_>) -> Result<()> {
     let status = Status {
-        connected:             proxy.connected().await?,
-        battery_percentage:    proxy.battery_percentage().await?,
-        eq_preset:             proxy.eq_preset().await?,
-        sidetone:              proxy.sidetone().await?,
-        thx_enabled:           proxy.thx_enabled().await?,
-        anc_enabled:           proxy.anc_enabled().await?,
-        anc_level:             proxy.anc_level().await?,
+        connected: proxy.connected().await?,
+        battery_percentage: proxy.battery_percentage().await?,
+        eq_preset: proxy.eq_preset().await?,
+        sidetone: proxy.sidetone().await?,
+        thx_enabled: proxy.thx_enabled().await?,
+        anc_enabled: proxy.anc_enabled().await?,
+        anc_level: proxy.anc_level().await?,
         power_savings_minutes: proxy.power_savings_minutes().await?,
     };
     println!("{}", serde_json::to_string_pretty(&status)?);
@@ -148,15 +161,19 @@ async fn cmd_monitor(proxy: &HeadsetProxy<'_>) -> Result<()> {
     // Print current state first so there's always a baseline.
     if proxy.connected().await? {
         let (pct, charging) = proxy.get_battery().await?;
-        println!("connected  battery={}% charging={} sidetone={}",
-            pct, charging, proxy.sidetone().await?);
+        println!(
+            "connected  battery={}% charging={} sidetone={}",
+            pct,
+            charging,
+            proxy.sidetone().await?
+        );
     } else {
         println!("disconnected");
     }
 
-    let mut battery_stream   = proxy.receive_battery_changed().await?;
+    let mut battery_stream = proxy.receive_battery_changed().await?;
     let mut connected_stream = proxy.receive_connected_changed().await;
-    let mut sidetone_stream  = proxy.receive_sidetone_changed().await;
+    let mut sidetone_stream = proxy.receive_sidetone_changed().await;
 
     loop {
         tokio::select! {

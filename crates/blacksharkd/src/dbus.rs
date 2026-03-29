@@ -6,19 +6,23 @@ use crate::hid_actor::{BatteryState, HidCommand};
 use crate::state::SharedState;
 
 pub struct HeadsetInterface {
-    cmd_tx:    mpsc::Sender<HidCommand>,
-    state_rx:  watch::Receiver<SharedState>,
+    cmd_tx: mpsc::Sender<HidCommand>,
+    state_rx: watch::Receiver<SharedState>,
     config_tx: watch::Sender<Config>,
 }
 
 impl HeadsetInterface {
     pub fn new(
-        cmd_tx:    mpsc::Sender<HidCommand>,
-        state_rx:  watch::Receiver<SharedState>,
+        cmd_tx: mpsc::Sender<HidCommand>,
+        state_rx: watch::Receiver<SharedState>,
         _state_tx: watch::Sender<SharedState>,
         config_tx: watch::Sender<Config>,
     ) -> Self {
-        Self { cmd_tx, state_rx, config_tx }
+        Self {
+            cmd_tx,
+            state_rx,
+            config_tx,
+        }
     }
 
     async fn send_cmd<T>(
@@ -49,7 +53,8 @@ impl HeadsetInterface {
             return Err(zbus::fdo::Error::InvalidArgs("level must be 0–15".into()));
         }
         let (tx, rx) = oneshot::channel();
-        self.send_cmd(HidCommand::SetSidetone { level, reply: tx }, rx).await?;
+        self.send_cmd(HidCommand::SetSidetone { level, reply: tx }, rx)
+            .await?;
         self.update_config(|c| c.sidetone = level);
         Ok(())
     }
@@ -57,7 +62,8 @@ impl HeadsetInterface {
     /// Enable or disable THX Spatial Audio. false = Stereo.
     async fn set_thx(&self, enabled: bool) -> zbus::fdo::Result<()> {
         let (tx, rx) = oneshot::channel();
-        self.send_cmd(HidCommand::SetThx { enabled, reply: tx }, rx).await?;
+        self.send_cmd(HidCommand::SetThx { enabled, reply: tx }, rx)
+            .await?;
         self.update_config(|c| c.thx_enabled = enabled);
         Ok(())
     }
@@ -68,8 +74,19 @@ impl HeadsetInterface {
             return Err(zbus::fdo::Error::InvalidArgs("level must be 1–4".into()));
         }
         let (tx, rx) = oneshot::channel();
-        self.send_cmd(HidCommand::SetAnc { enabled, level, reply: tx }, rx).await?;
-        self.update_config(|c| { c.anc_enabled = enabled; c.anc_level = level; });
+        self.send_cmd(
+            HidCommand::SetAnc {
+                enabled,
+                level,
+                reply: tx,
+            },
+            rx,
+        )
+        .await?;
+        self.update_config(|c| {
+            c.anc_enabled = enabled;
+            c.anc_level = level;
+        });
         Ok(())
     }
 
@@ -79,7 +96,8 @@ impl HeadsetInterface {
             return Err(zbus::fdo::Error::InvalidArgs("preset must be 0–8".into()));
         }
         let (tx, rx) = oneshot::channel();
-        self.send_cmd(HidCommand::SetEq { preset, reply: tx }, rx).await?;
+        self.send_cmd(HidCommand::SetEq { preset, reply: tx }, rx)
+            .await?;
         self.update_config(|c| c.eq_preset = preset);
         Ok(())
     }
@@ -87,10 +105,13 @@ impl HeadsetInterface {
     /// Set power savings timeout. minutes = 0 (off), 15, 30, 45, or 60.
     async fn set_power_savings(&self, minutes: u8) -> zbus::fdo::Result<()> {
         if ![0u8, 15, 30, 45, 60].contains(&minutes) {
-            return Err(zbus::fdo::Error::InvalidArgs("minutes must be 0, 15, 30, 45, or 60".into()));
+            return Err(zbus::fdo::Error::InvalidArgs(
+                "minutes must be 0, 15, 30, 45, or 60".into(),
+            ));
         }
         let (tx, rx) = oneshot::channel();
-        self.send_cmd(HidCommand::SetPowerSavings { minutes, reply: tx }, rx).await?;
+        self.send_cmd(HidCommand::SetPowerSavings { minutes, reply: tx }, rx)
+            .await?;
         self.update_config(|c| c.power_savings_minutes = minutes);
         Ok(())
     }
@@ -98,7 +119,9 @@ impl HeadsetInterface {
     /// Returns (percentage, charging).
     async fn get_battery(&self) -> zbus::fdo::Result<(u8, bool)> {
         let (tx, rx) = oneshot::channel::<anyhow::Result<BatteryState>>();
-        let state = self.send_cmd(HidCommand::GetBattery { reply: tx }, rx).await?;
+        let state = self
+            .send_cmd(HidCommand::GetBattery { reply: tx }, rx)
+            .await?;
         Ok((state.percentage, state.charging))
     }
 

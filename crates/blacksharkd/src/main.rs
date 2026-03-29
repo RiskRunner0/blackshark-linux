@@ -16,7 +16,7 @@ use zbus::ConnectionBuilder;
 use config::Config;
 use state::SharedState;
 
-const TICK_INTERVAL:     Duration = Duration::from_secs(5);
+const TICK_INTERVAL: Duration = Duration::from_secs(5);
 const DEBOUNCE_INTERVAL: Duration = Duration::from_millis(500);
 const DBUS_PATH: &str = "/net/blackshark1/Headset";
 const DBUS_NAME: &str = "net.blackshark1";
@@ -84,12 +84,19 @@ async fn main() -> Result<()> {
             } else {
                 info!("config saved");
             }
-            let _ = apply_tx.send(hid_actor::HidCommand::ApplyConfig { config: cfg }).await;
+            let _ = apply_tx
+                .send(hid_actor::HidCommand::ApplyConfig { config: cfg })
+                .await;
         }
     });
 
     // D-Bus service.
-    let iface = dbus::HeadsetInterface::new(cmd_tx, state_rx.clone(), state_tx.clone(), config_tx.clone());
+    let iface = dbus::HeadsetInterface::new(
+        cmd_tx,
+        state_rx.clone(),
+        state_tx.clone(),
+        config_tx.clone(),
+    );
 
     let conn = ConnectionBuilder::session()?
         .name(DBUS_NAME)?
@@ -118,28 +125,42 @@ async fn main() -> Result<()> {
 
             // Battery signal
             if state.connected && state.battery_pct != prev.battery_pct {
-                dbus::HeadsetInterface::battery_changed(
-                    ctxt, state.battery_pct, state.charging,
-                ).await.ok();
+                dbus::HeadsetInterface::battery_changed(ctxt, state.battery_pct, state.charging)
+                    .await
+                    .ok();
             }
 
             // Emit PropertiesChanged for any state that changed.
             let mut changed: HashMap<&str, &Value<'_>> = HashMap::new();
             let v_connected = Value::from(state.connected);
-            let v_battery   = Value::from(state.battery_pct);
-            let v_sidetone  = Value::from(state.sidetone);
-            let v_eq        = Value::from(state.eq_preset);
-            let v_thx       = Value::from(state.thx_enabled);
-            let v_anc       = Value::from(state.anc_enabled);
+            let v_battery = Value::from(state.battery_pct);
+            let v_sidetone = Value::from(state.sidetone);
+            let v_eq = Value::from(state.eq_preset);
+            let v_thx = Value::from(state.thx_enabled);
+            let v_anc = Value::from(state.anc_enabled);
             let v_anc_level = Value::from(state.anc_level);
-            let v_ps        = Value::from(state.power_savings_minutes);
-            if state.connected != prev.connected                   { changed.insert("Connected",          &v_connected); }
-            if state.battery_pct != prev.battery_pct               { changed.insert("BatteryPercentage",  &v_battery); }
-            if state.sidetone != prev.sidetone                     { changed.insert("Sidetone",           &v_sidetone); }
-            if state.eq_preset != prev.eq_preset                   { changed.insert("EqPreset",           &v_eq); }
-            if state.thx_enabled != prev.thx_enabled               { changed.insert("ThxEnabled",         &v_thx); }
-            if state.anc_enabled != prev.anc_enabled               { changed.insert("AncEnabled",         &v_anc); }
-            if state.anc_level != prev.anc_level                   { changed.insert("AncLevel",           &v_anc_level); }
+            let v_ps = Value::from(state.power_savings_minutes);
+            if state.connected != prev.connected {
+                changed.insert("Connected", &v_connected);
+            }
+            if state.battery_pct != prev.battery_pct {
+                changed.insert("BatteryPercentage", &v_battery);
+            }
+            if state.sidetone != prev.sidetone {
+                changed.insert("Sidetone", &v_sidetone);
+            }
+            if state.eq_preset != prev.eq_preset {
+                changed.insert("EqPreset", &v_eq);
+            }
+            if state.thx_enabled != prev.thx_enabled {
+                changed.insert("ThxEnabled", &v_thx);
+            }
+            if state.anc_enabled != prev.anc_enabled {
+                changed.insert("AncEnabled", &v_anc);
+            }
+            if state.anc_level != prev.anc_level {
+                changed.insert("AncLevel", &v_anc_level);
+            }
             if state.power_savings_minutes != prev.power_savings_minutes {
                 changed.insert("PowerSavingsMinutes", &v_ps);
             }
@@ -149,7 +170,9 @@ async fn main() -> Result<()> {
                     "net.blackshark1.Headset".try_into().unwrap(),
                     &changed,
                     &[],
-                ).await.ok();
+                )
+                .await
+                .ok();
             }
 
             prev = state;

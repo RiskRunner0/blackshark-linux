@@ -17,16 +17,34 @@ use crate::state::SharedState;
 
 pub struct BatteryState {
     pub percentage: u8,
-    pub charging:   bool,
+    pub charging: bool,
 }
 
 pub enum HidCommand {
-    SetSidetone     { level: u8,               reply: oneshot::Sender<Result<()>> },
-    GetBattery      {                           reply: oneshot::Sender<Result<BatteryState>> },
-    SetThx          { enabled: bool,            reply: oneshot::Sender<Result<()>> },
-    SetAnc          { enabled: bool, level: u8, reply: oneshot::Sender<Result<()>> },
-    SetPowerSavings { minutes: u8,              reply: oneshot::Sender<Result<()>> },
-    SetEq           { preset: u8,              reply: oneshot::Sender<Result<()>> },
+    SetSidetone {
+        level: u8,
+        reply: oneshot::Sender<Result<()>>,
+    },
+    GetBattery {
+        reply: oneshot::Sender<Result<BatteryState>>,
+    },
+    SetThx {
+        enabled: bool,
+        reply: oneshot::Sender<Result<()>>,
+    },
+    SetAnc {
+        enabled: bool,
+        level: u8,
+        reply: oneshot::Sender<Result<()>>,
+    },
+    SetPowerSavings {
+        minutes: u8,
+        reply: oneshot::Sender<Result<()>>,
+    },
+    SetEq {
+        preset: u8,
+        reply: oneshot::Sender<Result<()>>,
+    },
     /// Sent when config changes — restores all settings to the device.
     ApplyConfig { config: Config },
     /// Periodic wakeup sent by a tokio timer — drives reconnect + battery poll.
@@ -43,14 +61,22 @@ const BATTERY_POLL_INTERVAL: Duration = Duration::from_secs(5 * 60);
 ///
 /// `HidDevice` is not `Send`, so all HID I/O stays on this thread.
 /// Communication with async callers is via the mpsc channel + oneshot replies.
-pub fn spawn(rx: mpsc::Receiver<HidCommand>, state_tx: watch::Sender<SharedState>, initial_config: Config) {
+pub fn spawn(
+    rx: mpsc::Receiver<HidCommand>,
+    state_tx: watch::Sender<SharedState>,
+    initial_config: Config,
+) {
     std::thread::Builder::new()
         .name("hid-actor".into())
         .spawn(move || run(rx, state_tx, initial_config))
         .expect("failed to spawn hid-actor thread");
 }
 
-fn run(mut rx: mpsc::Receiver<HidCommand>, state_tx: watch::Sender<SharedState>, initial_config: Config) {
+fn run(
+    mut rx: mpsc::Receiver<HidCommand>,
+    state_tx: watch::Sender<SharedState>,
+    initial_config: Config,
+) {
     let mut dev: Option<HidDevice> = try_open();
     let mut next_battery_poll = Instant::now(); // poll immediately on first tick
     let mut device_ready = false; // true after first successful battery poll
@@ -69,23 +95,29 @@ fn run(mut rx: mpsc::Receiver<HidCommand>, state_tx: watch::Sender<SharedState>,
                         match query_battery(d) {
                             Ok(b) => {
                                 next_battery_poll = Instant::now() + BATTERY_POLL_INTERVAL;
-                                debug!(percentage = b.percentage, charging = b.charging, "battery poll");
+                                debug!(
+                                    percentage = b.percentage,
+                                    charging = b.charging,
+                                    "battery poll"
+                                );
                                 if !device_ready {
                                     // First successful battery poll = wireless link established.
                                     device_ready = true;
                                     let sidetone = query_sidetone(d).ok();
                                     info!(percentage = b.percentage, sidetone, "headset connected");
                                     state_tx.send_modify(|s| {
-                                        s.connected   = true;
+                                        s.connected = true;
                                         s.battery_pct = b.percentage;
-                                        s.charging    = b.charging;
-                                        if let Some(v) = sidetone { s.sidetone = v; }
+                                        s.charging = b.charging;
+                                        if let Some(v) = sidetone {
+                                            s.sidetone = v;
+                                        }
                                     });
                                     restore_config(d, &initial_config);
                                 } else {
                                     state_tx.send_modify(|s| {
                                         s.battery_pct = b.percentage;
-                                        s.charging    = b.charging;
+                                        s.charging = b.charging;
                                     });
                                 }
                             }
@@ -130,13 +162,20 @@ fn run(mut rx: mpsc::Receiver<HidCommand>, state_tx: watch::Sender<SharedState>,
                 let _ = reply.send(result);
             }
 
-            HidCommand::SetAnc { enabled, level, reply } => {
+            HidCommand::SetAnc {
+                enabled,
+                level,
+                reply,
+            } => {
                 info!(enabled, level, "set_anc");
                 let result = with_dev(&mut dev, &state_tx, |d| set_anc(d, enabled, level));
                 match &result {
                     Ok(()) => {
                         info!(enabled, level, "set_anc ok");
-                        state_tx.send_modify(|s| { s.anc_enabled = enabled; s.anc_level = level; });
+                        state_tx.send_modify(|s| {
+                            s.anc_enabled = enabled;
+                            s.anc_level = level;
+                        });
                     }
                     Err(e) => warn!("set_anc failed: {e}"),
                 }
@@ -174,10 +213,14 @@ fn run(mut rx: mpsc::Receiver<HidCommand>, state_tx: watch::Sender<SharedState>,
                 let result = with_dev(&mut dev, &state_tx, query_battery);
                 match &result {
                     Ok(b) => {
-                        info!(percentage = b.percentage, charging = b.charging, "get_battery ok");
+                        info!(
+                            percentage = b.percentage,
+                            charging = b.charging,
+                            "get_battery ok"
+                        );
                         state_tx.send_modify(|s| {
                             s.battery_pct = b.percentage;
-                            s.charging    = b.charging;
+                            s.charging = b.charging;
                         });
                     }
                     Err(e) => warn!("get_battery failed: {e}"),
@@ -279,24 +322,45 @@ where
 // ---------------------------------------------------------------------------
 
 fn set_sidetone(dev: &HidDevice, level: u8) -> Result<()> {
-    let get = Report::new(0x60, cmd::SIDETONE_GET_CLASS, cmd::SIDETONE_ID, &[cmd::SIDETONE_GET_ARG, 0x00]);
+    let get = Report::new(
+        0x60,
+        cmd::SIDETONE_GET_CLASS,
+        cmd::SIDETONE_ID,
+        &[cmd::SIDETONE_GET_ARG, 0x00],
+    );
     device::send(dev, &get)?;
-    let set = Report::new(0x60, cmd::SIDETONE_SET_CLASS, cmd::SIDETONE_ID, &[level, 0x00]);
+    let set = Report::new(
+        0x60,
+        cmd::SIDETONE_SET_CLASS,
+        cmd::SIDETONE_ID,
+        &[level, 0x00],
+    );
     device::send(dev, &set)?;
     Ok(())
 }
 
 fn query_battery(dev: &HidDevice) -> Result<BatteryState> {
-    let report   = Report::new(0x60, cmd::BATTERY_CLASS, cmd::BATTERY_ID, &[0x00]);
+    let report = Report::new(0x60, cmd::BATTERY_CLASS, cmd::BATTERY_ID, &[0x00]);
     let response = device::send(dev, &report)?;
-    let args     = response.args();
+    let args = response.args();
     anyhow::ensure!(args.len() >= 2, "battery response too short");
-    anyhow::ensure!(args[0] <= 100, "battery percentage out of range: {}", args[0]);
-    Ok(BatteryState { percentage: args[0], charging: args[1] != 0x00 })
+    anyhow::ensure!(
+        args[0] <= 100,
+        "battery percentage out of range: {}",
+        args[0]
+    );
+    Ok(BatteryState {
+        percentage: args[0],
+        charging: args[1] != 0x00,
+    })
 }
 
 fn set_thx(dev: &HidDevice, enabled: bool) -> Result<()> {
-    let mode = if enabled { cmd::THX_SPATIAL } else { cmd::THX_STEREO };
+    let mode = if enabled {
+        cmd::THX_SPATIAL
+    } else {
+        cmd::THX_STEREO
+    };
     let report = Report::new(0x60, cmd::THX_CLASS, cmd::THX_ID, &[mode, 0x00]);
     device::send(dev, &report)?;
     Ok(())
@@ -304,15 +368,23 @@ fn set_thx(dev: &HidDevice, enabled: bool) -> Result<()> {
 
 fn set_anc(dev: &HidDevice, enabled: bool, level: u8) -> Result<()> {
     let level = level.clamp(cmd::ANC_LEVEL_MIN, cmd::ANC_LEVEL_MAX);
-    let report = Report::new(0x60, cmd::ANC_CLASS, cmd::ANC_ID,
-                             &[enabled as u8, level, 0x00]);
+    let report = Report::new(
+        0x60,
+        cmd::ANC_CLASS,
+        cmd::ANC_ID,
+        &[enabled as u8, level, 0x00],
+    );
     device::send(dev, &report)?;
     Ok(())
 }
 
 fn set_power_savings(dev: &HidDevice, minutes: u8) -> Result<()> {
-    let report = Report::new(0x60, cmd::POWER_SAVINGS_CLASS, cmd::POWER_SAVINGS_ID,
-                             &[minutes, 0x00]);
+    let report = Report::new(
+        0x60,
+        cmd::POWER_SAVINGS_CLASS,
+        cmd::POWER_SAVINGS_ID,
+        &[minutes, 0x00],
+    );
     device::send(dev, &report)?;
     Ok(())
 }
@@ -322,11 +394,21 @@ fn set_power_savings(dev: &HidDevice, minutes: u8) -> Result<()> {
 /// Band values use sign-magnitude encoding: 0x00=0dB, 0x01=+1dB, 0x81=−1dB.
 /// Bands: 60Hz, 170Hz, 310Hz, 600Hz, 1kHz, 3kHz, 6kHz, 12kHz, 16kHz.
 const EQ_BANDS: [[u8; 12]; 5] = [
-    [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], // 0: Flat
-    [0x01, 0x02, 0x02, 0x05, 0x05, 0x01, 0x81, 0x02, 0x03, 0x03, 0x03, 0x00], // 1
-    [0x02, 0x03, 0x03, 0x03, 0x81, 0x84, 0x84, 0x02, 0x03, 0x03, 0x03, 0x00], // 2
-    [0x03, 0x02, 0x02, 0x00, 0x00, 0x01, 0x81, 0x81, 0x03, 0x03, 0x03, 0x00], // 3
-    [0x04, 0x01, 0x01, 0x81, 0x00, 0x02, 0x00, 0x04, 0x04, 0x04, 0x83, 0x00], // 4
+    [
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ], // 0: Flat
+    [
+        0x01, 0x02, 0x02, 0x05, 0x05, 0x01, 0x81, 0x02, 0x03, 0x03, 0x03, 0x00,
+    ], // 1
+    [
+        0x02, 0x03, 0x03, 0x03, 0x81, 0x84, 0x84, 0x02, 0x03, 0x03, 0x03, 0x00,
+    ], // 2
+    [
+        0x03, 0x02, 0x02, 0x00, 0x00, 0x01, 0x81, 0x81, 0x03, 0x03, 0x03, 0x00,
+    ], // 3
+    [
+        0x04, 0x01, 0x01, 0x81, 0x00, 0x02, 0x00, 0x04, 0x04, 0x04, 0x83, 0x00,
+    ], // 4
 ];
 
 /// Meta args per preset (7 bytes, from captures).
@@ -340,50 +422,85 @@ const EQ_META: [[u8; 7]; 5] = [
 
 /// Commit args per preset (12 bytes, from captures).
 const EQ_COMMIT: [[u8; 12]; 5] = [
-    [0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
-    [0x01, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
-    [0x02, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
-    [0x03, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
-    [0x04, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+    [
+        0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ],
+    [
+        0x01, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ],
+    [
+        0x02, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ],
+    [
+        0x03, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ],
+    [
+        0x04, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ],
 ];
 
 fn set_eq_preset(dev: &HidDevice, preset: u8) -> Result<()> {
-    anyhow::ensure!(preset < cmd::EQ_PRESET_COUNT, "preset index out of range (0–8)");
+    anyhow::ensure!(
+        preset < cmd::EQ_PRESET_COUNT,
+        "preset index out of range (0–8)"
+    );
 
     // Only presets 0–4 have captured data; 5–8 use flat band data with their index.
     let idx = preset as usize;
     let (bands, meta, commit) = if idx < EQ_BANDS.len() {
         (EQ_BANDS[idx], EQ_META[idx], EQ_COMMIT[idx])
     } else {
-        let mut b = EQ_BANDS[0]; b[0] = preset;
-        let mut m = EQ_META[0];  m[0] = preset;
-        let mut c = EQ_COMMIT[0]; c[0] = preset;
+        let mut b = EQ_BANDS[0];
+        b[0] = preset;
+        let mut m = EQ_META[0];
+        m[0] = preset;
+        let mut c = EQ_COMMIT[0];
+        c[0] = preset;
         (b, m, c)
     };
 
     // 1. GET current state
-    device::send(dev, &Report::new(0x60, cmd::EQ_STATE_CLASS, cmd::EQ_STATE_ID, &[0x01, 0x00]))?;
+    device::send(
+        dev,
+        &Report::new(0x60, cmd::EQ_STATE_CLASS, cmd::EQ_STATE_ID, &[0x01, 0x00]),
+    )?;
 
     // 2. SET bands
-    device::send(dev, &Report::new(0x60, cmd::EQ_BANDS_CLASS, cmd::EQ_BANDS_ID, &bands))?;
+    device::send(
+        dev,
+        &Report::new(0x60, cmd::EQ_BANDS_CLASS, cmd::EQ_BANDS_ID, &bands),
+    )?;
 
     // 3. SET meta
-    device::send(dev, &Report::new(0x60, cmd::EQ_META_CLASS, cmd::EQ_META_ID, &meta))?;
+    device::send(
+        dev,
+        &Report::new(0x60, cmd::EQ_META_CLASS, cmd::EQ_META_ID, &meta),
+    )?;
 
     // 4. APPLY
-    device::send(dev, &Report::new(0x60, cmd::EQ_STATE_CLASS, cmd::EQ_STATE_ID, &[0x02, 0x00]))?;
+    device::send(
+        dev,
+        &Report::new(0x60, cmd::EQ_STATE_CLASS, cmd::EQ_STATE_ID, &[0x02, 0x00]),
+    )?;
 
     // 5. COMMIT
-    device::send(dev, &Report::new(0x60, cmd::EQ_COMMIT_CLASS, cmd::EQ_COMMIT_ID, &commit))?;
+    device::send(
+        dev,
+        &Report::new(0x60, cmd::EQ_COMMIT_CLASS, cmd::EQ_COMMIT_ID, &commit),
+    )?;
 
     Ok(())
 }
 
 fn query_sidetone(dev: &HidDevice) -> Result<u8> {
-    let report   = Report::new(0x60, cmd::SIDETONE_READ_CLASS, 0x00, &[0x00]);
+    let report = Report::new(0x60, cmd::SIDETONE_READ_CLASS, 0x00, &[0x00]);
     let response = device::send(dev, &report)?;
-    let args     = response.args();
+    let args = response.args();
     anyhow::ensure!(!args.is_empty(), "sidetone response empty");
-    anyhow::ensure!(args[0] <= cmd::SIDETONE_MAX, "sidetone out of range: {}", args[0]);
+    anyhow::ensure!(
+        args[0] <= cmd::SIDETONE_MAX,
+        "sidetone out of range: {}",
+        args[0]
+    );
     Ok(args[0])
 }

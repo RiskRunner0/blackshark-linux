@@ -1,20 +1,20 @@
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
-use blackshark_client::{EQ_PRESET_NAMES, HeadsetProxy};
+use blackshark_client::{HeadsetProxy, EQ_PRESET_NAMES};
 use ksni::{self, menu::*, Icon, Tray};
 use zbus::Connection;
 
 #[derive(Clone, Debug)]
 struct HeadsetState {
-    connected:     bool,
-    battery_pct:   u8,
-    charging:      bool,
-    eq_preset:     u8,
-    sidetone:      u8,
-    thx_enabled:   bool,
-    anc_enabled:   bool,
-    anc_level:     u8,
+    connected: bool,
+    battery_pct: u8,
+    charging: bool,
+    eq_preset: u8,
+    sidetone: u8,
+    thx_enabled: bool,
+    anc_enabled: bool,
+    anc_level: u8,
     power_savings: u8,
     daemon_status: String,
 }
@@ -22,14 +22,14 @@ struct HeadsetState {
 impl Default for HeadsetState {
     fn default() -> Self {
         Self {
-            connected:     false,
-            battery_pct:   0,
-            charging:      false,
-            eq_preset:     0,
-            sidetone:      0,
-            thx_enabled:   false,
-            anc_enabled:   false,
-            anc_level:     0,
+            connected: false,
+            battery_pct: 0,
+            charging: false,
+            eq_preset: 0,
+            sidetone: 0,
+            thx_enabled: false,
+            anc_enabled: false,
+            anc_level: 0,
             power_savings: 0,
             daemon_status: "unknown".into(),
         }
@@ -41,9 +41,9 @@ impl Default for HeadsetState {
 // ---------------------------------------------------------------------------
 
 struct BlacksharkTray {
-    state:  Arc<Mutex<HeadsetState>>,
-    conn:   Connection,
-    rt:     tokio::runtime::Handle,
+    state: Arc<Mutex<HeadsetState>>,
+    conn: Connection,
+    rt: tokio::runtime::Handle,
 }
 
 impl Tray for BlacksharkTray {
@@ -72,9 +72,9 @@ impl Tray for BlacksharkTray {
             format!("{}%{} — Sidetone {}", s.battery_pct, charging, s.sidetone)
         };
         ksni::ToolTip {
-            icon_name:   String::new(),
+            icon_name: String::new(),
             icon_pixmap: vec![],
-            title:       "BlackShark V3 Pro".into(),
+            title: "BlackShark V3 Pro".into(),
             description,
         }
     }
@@ -91,7 +91,7 @@ impl Tray for BlacksharkTray {
 
         let mut items: Vec<MenuItem<Self>> = vec![
             MenuItem::Standard(StandardItem {
-                label:   battery_label,
+                label: battery_label,
                 enabled: false,
                 ..Default::default()
             }),
@@ -102,13 +102,17 @@ impl Tray for BlacksharkTray {
             // Sidetone submenu
             let sidetone = s.sidetone;
             items.push(MenuItem::SubMenu(SubMenu {
-                label:   format!("Sidetone: {sidetone}"),
+                label: format!("Sidetone: {sidetone}"),
                 submenu: (0u8..=15)
                     .map(|lvl| {
                         MenuItem::Standard(StandardItem {
-                            label:     if lvl == sidetone { format!("• {lvl}") } else { format!("  {lvl}") },
+                            label: if lvl == sidetone {
+                                format!("• {lvl}")
+                            } else {
+                                format!("  {lvl}")
+                            },
                             icon_name: String::new(),
-                            activate:  Box::new(move |tray: &mut Self| {
+                            activate: Box::new(move |tray: &mut Self| {
                                 tray.state.lock().unwrap().sidetone = lvl;
                                 let conn = tray.conn.clone();
                                 tray.rt.spawn(async move {
@@ -128,30 +132,44 @@ impl Tray for BlacksharkTray {
             // EQ preset submenu
             let eq = s.eq_preset;
             items.push(MenuItem::SubMenu(SubMenu {
-                label:   format!("EQ: {}", EQ_PRESET_NAMES.get(eq as usize).copied().unwrap_or("Custom")),
-                submenu: EQ_PRESET_NAMES.iter().enumerate().map(|(i, name)| {
-                    let i = i as u8;
-                    MenuItem::Standard(StandardItem {
-                        label:    if i == eq { format!("• {name}") } else { format!("  {name}") },
-                        activate: Box::new(move |tray: &mut Self| {
-                            tray.state.lock().unwrap().eq_preset = i;
-                            let conn = tray.conn.clone();
-                            tray.rt.spawn(async move {
-                                if let Ok(proxy) = HeadsetProxy::new(&conn).await {
-                                    let _ = proxy.set_eq(i).await;
-                                }
-                            });
-                        }),
-                        ..Default::default()
+                label: format!(
+                    "EQ: {}",
+                    EQ_PRESET_NAMES
+                        .get(eq as usize)
+                        .copied()
+                        .unwrap_or("Custom")
+                ),
+                submenu: EQ_PRESET_NAMES
+                    .iter()
+                    .enumerate()
+                    .map(|(i, name)| {
+                        let i = i as u8;
+                        MenuItem::Standard(StandardItem {
+                            label: if i == eq {
+                                format!("• {name}")
+                            } else {
+                                format!("  {name}")
+                            },
+                            activate: Box::new(move |tray: &mut Self| {
+                                tray.state.lock().unwrap().eq_preset = i;
+                                let conn = tray.conn.clone();
+                                tray.rt.spawn(async move {
+                                    if let Ok(proxy) = HeadsetProxy::new(&conn).await {
+                                        let _ = proxy.set_eq(i).await;
+                                    }
+                                });
+                            }),
+                            ..Default::default()
+                        })
                     })
-                }).collect(),
+                    .collect(),
                 ..Default::default()
             }));
 
             // THX toggle
             let thx = s.thx_enabled;
             items.push(MenuItem::Standard(StandardItem {
-                label:    format!("THX Spatial: {}", if thx { "On ✓" } else { "Off" }),
+                label: format!("THX Spatial: {}", if thx { "On ✓" } else { "Off" }),
                 activate: Box::new(move |tray: &mut Self| {
                     tray.state.lock().unwrap().thx_enabled = !thx;
                     let conn = tray.conn.clone();
@@ -165,11 +183,15 @@ impl Tray for BlacksharkTray {
             }));
 
             // ANC submenu — toggle + level
-            let anc     = s.anc_enabled;
+            let anc = s.anc_enabled;
             let anc_lvl = s.anc_level.max(1);
             let mut anc_submenu: Vec<MenuItem<Self>> = vec![
                 MenuItem::Standard(StandardItem {
-                    label:    if anc { "Enabled ✓".into() } else { "Disabled".into() },
+                    label: if anc {
+                        "Enabled ✓".into()
+                    } else {
+                        "Disabled".into()
+                    },
                     activate: Box::new(move |tray: &mut Self| {
                         tray.state.lock().unwrap().anc_enabled = !anc;
                         let conn = tray.conn.clone();
@@ -184,13 +206,16 @@ impl Tray for BlacksharkTray {
                 MenuItem::Separator,
             ];
             for lvl in 1u8..=4 {
-                let label = format!("{} Level {lvl}", if lvl == anc_lvl && anc { "•" } else { " " });
+                let label = format!(
+                    "{} Level {lvl}",
+                    if lvl == anc_lvl && anc { "•" } else { " " }
+                );
                 anc_submenu.push(MenuItem::Standard(StandardItem {
                     label,
                     activate: Box::new(move |tray: &mut Self| {
                         {
                             let mut s = tray.state.lock().unwrap();
-                            s.anc_level   = lvl;
+                            s.anc_level = lvl;
                             s.anc_enabled = true;
                         }
                         let conn = tray.conn.clone();
@@ -204,7 +229,14 @@ impl Tray for BlacksharkTray {
                 }));
             }
             items.push(MenuItem::SubMenu(SubMenu {
-                label:   format!("ANC: {}", if anc { format!("On (level {anc_lvl})") } else { "Off".into() }),
+                label: format!(
+                    "ANC: {}",
+                    if anc {
+                        format!("On (level {anc_lvl})")
+                    } else {
+                        "Off".into()
+                    }
+                ),
                 submenu: anc_submenu,
                 ..Default::default()
             }));
@@ -212,16 +244,31 @@ impl Tray for BlacksharkTray {
             // Power savings submenu
             let ps = s.power_savings;
             items.push(MenuItem::SubMenu(SubMenu {
-                label:   format!("Power savings: {}", if ps == 0 { "Off".into() } else { format!("{ps} min") }),
+                label: format!(
+                    "Power savings: {}",
+                    if ps == 0 {
+                        "Off".into()
+                    } else {
+                        format!("{ps} min")
+                    }
+                ),
                 submenu: [0u8, 15, 30, 45, 60]
                     .iter()
                     .map(|&m| {
-                        let base = if m == 0 { "Off".into() } else { format!("{m} min") };
-                        let label = if m == ps { format!("• {base}") } else { format!("  {base}") };
+                        let base = if m == 0 {
+                            "Off".into()
+                        } else {
+                            format!("{m} min")
+                        };
+                        let label = if m == ps {
+                            format!("• {base}")
+                        } else {
+                            format!("  {base}")
+                        };
                         MenuItem::Standard(StandardItem {
                             label,
                             icon_name: String::new(),
-                            activate:  Box::new(move |tray: &mut Self| {
+                            activate: Box::new(move |tray: &mut Self| {
                                 tray.state.lock().unwrap().power_savings = m;
                                 let conn = tray.conn.clone();
                                 tray.rt.spawn(async move {
@@ -242,48 +289,51 @@ impl Tray for BlacksharkTray {
 
         let daemon_status = s.daemon_status.clone();
         items.push(MenuItem::SubMenu(SubMenu {
-            label:   format!("Daemon: {daemon_status}"),
+            label: format!("Daemon: {daemon_status}"),
             submenu: vec![
                 MenuItem::Standard(StandardItem {
-                    label:   format!("Status: {daemon_status}"),
+                    label: format!("Status: {daemon_status}"),
                     enabled: false,
                     ..Default::default()
                 }),
                 MenuItem::Separator,
                 MenuItem::Standard(StandardItem {
-                    label:    "Start".into(),
+                    label: "Start".into(),
                     activate: Box::new(|tray: &mut Self| {
                         let state = tray.state.clone();
                         tray.rt.spawn(async move {
                             let _ = tokio::process::Command::new("systemctl")
                                 .args(["--user", "start", "blacksharkd"])
-                                .status().await;
+                                .status()
+                                .await;
                             state.lock().unwrap().daemon_status = fetch_daemon_status().await;
                         });
                     }),
                     ..Default::default()
                 }),
                 MenuItem::Standard(StandardItem {
-                    label:    "Stop".into(),
+                    label: "Stop".into(),
                     activate: Box::new(|tray: &mut Self| {
                         let state = tray.state.clone();
                         tray.rt.spawn(async move {
                             let _ = tokio::process::Command::new("systemctl")
                                 .args(["--user", "stop", "blacksharkd"])
-                                .status().await;
+                                .status()
+                                .await;
                             state.lock().unwrap().daemon_status = fetch_daemon_status().await;
                         });
                     }),
                     ..Default::default()
                 }),
                 MenuItem::Standard(StandardItem {
-                    label:    "Restart".into(),
+                    label: "Restart".into(),
                     activate: Box::new(|tray: &mut Self| {
                         let state = tray.state.clone();
                         tray.rt.spawn(async move {
                             let _ = tokio::process::Command::new("systemctl")
                                 .args(["--user", "restart", "blacksharkd"])
-                                .status().await;
+                                .status()
+                                .await;
                             state.lock().unwrap().daemon_status = fetch_daemon_status().await;
                         });
                     }),
@@ -294,7 +344,7 @@ impl Tray for BlacksharkTray {
         }));
 
         items.push(MenuItem::Standard(StandardItem {
-            label:    "Quit".into(),
+            label: "Quit".into(),
             activate: Box::new(|_| std::process::exit(0)),
             ..Default::default()
         }));
@@ -309,7 +359,10 @@ async fn fetch_daemon_status() -> String {
         .output()
         .await;
     match out {
-        Ok(o) => String::from_utf8(o.stdout).unwrap_or_default().trim().to_owned(),
+        Ok(o) => String::from_utf8(o.stdout)
+            .unwrap_or_default()
+            .trim()
+            .to_owned(),
         Err(_) => "unknown".to_owned(),
     }
 }
@@ -320,7 +373,7 @@ async fn fetch_daemon_status() -> String {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let conn  = Connection::session().await?;
+    let conn = Connection::session().await?;
     let state = Arc::new(Mutex::new(HeadsetState::default()));
 
     // Load initial daemon status.
@@ -332,12 +385,12 @@ async fn main() -> Result<()> {
             let mut s = state.lock().unwrap();
             s.connected = connected;
             if connected {
-                s.battery_pct   = proxy.battery_percentage().await.unwrap_or(0);
-                s.eq_preset     = proxy.eq_preset().await.unwrap_or(0);
-                s.sidetone      = proxy.sidetone().await.unwrap_or(0);
-                s.thx_enabled   = proxy.thx_enabled().await.unwrap_or(false);
-                s.anc_enabled   = proxy.anc_enabled().await.unwrap_or(false);
-                s.anc_level     = proxy.anc_level().await.unwrap_or(1);
+                s.battery_pct = proxy.battery_percentage().await.unwrap_or(0);
+                s.eq_preset = proxy.eq_preset().await.unwrap_or(0);
+                s.sidetone = proxy.sidetone().await.unwrap_or(0);
+                s.thx_enabled = proxy.thx_enabled().await.unwrap_or(false);
+                s.anc_enabled = proxy.anc_enabled().await.unwrap_or(false);
+                s.anc_level = proxy.anc_level().await.unwrap_or(1);
                 s.power_savings = proxy.power_savings_minutes().await.unwrap_or(0);
             }
         }
@@ -346,15 +399,15 @@ async fn main() -> Result<()> {
     // Build tray service and get handle before spawning.
     let service = ksni::TrayService::new(BlacksharkTray {
         state: state.clone(),
-        conn:  conn.clone(),
-        rt:    tokio::runtime::Handle::current(),
+        conn: conn.clone(),
+        rt: tokio::runtime::Handle::current(),
     });
     let handle = service.handle();
     service.spawn();
 
     // Poll daemon status every 5s so it stays current.
     {
-        let state3  = state.clone();
+        let state3 = state.clone();
         let handle3 = handle.clone();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
@@ -371,16 +424,18 @@ async fn main() -> Result<()> {
     let state2 = state.clone();
     tokio::spawn(async move {
         use futures_util::StreamExt;
-        let Ok(proxy) = HeadsetProxy::new(&conn).await else { return };
+        let Ok(proxy) = HeadsetProxy::new(&conn).await else {
+            return;
+        };
 
-        let mut battery_stream   = proxy.receive_battery_changed().await.ok();
+        let mut battery_stream = proxy.receive_battery_changed().await.ok();
         let mut connected_stream = proxy.receive_connected_changed().await;
-        let mut sidetone_stream  = proxy.receive_sidetone_changed().await;
-        let mut thx_stream       = proxy.receive_thx_enabled_changed().await;
-        let mut eq_stream        = proxy.receive_eq_preset_changed().await;
-        let mut anc_stream       = proxy.receive_anc_enabled_changed().await;
+        let mut sidetone_stream = proxy.receive_sidetone_changed().await;
+        let mut thx_stream = proxy.receive_thx_enabled_changed().await;
+        let mut eq_stream = proxy.receive_eq_preset_changed().await;
+        let mut anc_stream = proxy.receive_anc_enabled_changed().await;
         let mut anc_level_stream = proxy.receive_anc_level_changed().await;
-        let mut ps_stream        = proxy.receive_power_savings_minutes_changed().await;
+        let mut ps_stream = proxy.receive_power_savings_minutes_changed().await;
 
         loop {
             tokio::select! {

@@ -21,11 +21,11 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            sidetone:              0,
-            eq_preset:             0,
-            thx_enabled:           false,
-            anc_enabled:           false,
-            anc_level:             1,
+            sidetone: 0,
+            eq_preset: 0,
+            thx_enabled: false,
+            anc_enabled: false,
+            anc_level: 1,
             power_savings_minutes: 0,
         }
     }
@@ -57,6 +57,5 @@ pub fn save(config: &Config) -> Result<()> {
             .with_context(|| format!("failed to create {}", parent.display()))?;
     }
     let text = toml::to_string_pretty(config).context("failed to serialise config")?;
-    std::fs::write(&path, text)
-        .with_context(|| format!("failed to write {}", path.display()))
+    std::fs::write(&path, text).with_context(|| format!("failed to write {}", path.display()))
 }
