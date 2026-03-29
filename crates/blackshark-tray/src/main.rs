@@ -344,6 +344,12 @@ impl Tray for BlacksharkTray {
         }));
 
         items.push(MenuItem::Standard(StandardItem {
+            label: format!("v{}", env!("CARGO_PKG_VERSION")),
+            enabled: false,
+            ..Default::default()
+        }));
+
+        items.push(MenuItem::Standard(StandardItem {
             label: "Quit".into(),
             activate: Box::new(|_| std::process::exit(0)),
             ..Default::default()

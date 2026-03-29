@@ -430,6 +430,7 @@ component AdvancedTab inherits ScrollView {
     in property <string>                  daemon-status;  // "active", "inactive", "failed", ...
     in property <[LogLine]>               log-lines;
     in-out property <bool>                pipewire-enabled;
+    in property <string>                  app-version;
 
     callback teardown-sinks();
     callback rebuild-sinks();
@@ -546,6 +547,16 @@ component AdvancedTab inherits ScrollView {
         }
     }
 
+    GroupBox {
+        title: "About";
+        VerticalBox {
+            spacing: 4px;
+            Text { text: "blackshark-ctl " + app-version; color: Palette.foreground; font-size: 12px; }
+            Text { text: "Linux userspace driver for the Razer BlackShark V3 Pro"; color: Palette.foreground; font-size: 11px; }
+            Text { text: "github.com/RiskRunner0/blackshark-linux"; color: Palette.foreground; font-size: 11px; }
+        }
+    }
+
     } // VerticalBox
 }
 
@@ -580,6 +591,7 @@ export component MainWindow inherits Window {
     in property <string>      daemon-status;
     in property <[LogLine]>   log-lines;
     in-out property <bool>    pipewire-enabled;
+    in property <string>      app-version;
 
     // Callbacks → Rust
     callback set-eq(int);
@@ -680,6 +692,7 @@ export component MainWindow inherits Window {
             daemon-status:    daemon-status;
             log-lines:        log-lines;
             pipewire-enabled <=> pipewire-enabled;
+            app-version:      app-version;
             teardown-sinks()  => { teardown-sinks(); }
             rebuild-sinks()   => { rebuild-sinks(); }
             start-daemon()    => { start-daemon(); }

@@ -102,6 +102,7 @@ async fn setup_sinks(mix: u8) -> Vec<u32> {
 async fn main() -> Result<()> {
     let conn = Connection::session().await?;
     let window = MainWindow::new()?;
+    window.set_app_version(env!("CARGO_PKG_VERSION").into());
 
     // PipeWire state owned by the GUI process.
     let modules: Arc<Mutex<Vec<u32>>> = Arc::new(Mutex::new(Vec::new()));

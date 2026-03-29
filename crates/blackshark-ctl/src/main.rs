@@ -8,6 +8,7 @@ use blackshark_client::HeadsetProxy;
 #[derive(Parser)]
 #[command(
     name = "blackshark-ctl",
+    version,
     about = "Control the Razer BlackShark V3 Pro headset"
 )]
 struct Cli {

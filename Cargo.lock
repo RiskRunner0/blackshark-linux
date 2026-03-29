@@ -627,14 +627,14 @@ dependencies = [
 
 [[package]]
 name = "blackshark-client"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "zbus 4.4.0",
 ]
 
 [[package]]
 name = "blackshark-ctl"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "blackshark-client",
@@ -648,7 +648,7 @@ dependencies = [
 
 [[package]]
 name = "blackshark-device"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "blackshark-protocol",
@@ -657,7 +657,7 @@ dependencies = [
 
 [[package]]
 name = "blackshark-gui"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "blackshark-client",
@@ -671,11 +671,11 @@ dependencies = [
 
 [[package]]
 name = "blackshark-protocol"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "blackshark-tray"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "blackshark-client",
@@ -687,7 +687,7 @@ dependencies = [
 
 [[package]]
 name = "blacksharkd"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "blackshark-device",
