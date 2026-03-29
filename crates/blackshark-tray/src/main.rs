@@ -379,19 +379,40 @@ async fn main() -> Result<()> {
     // Load initial daemon status.
     state.lock().unwrap().daemon_status = fetch_daemon_status().await;
 
-    // Load initial state from daemon
+    // Load initial state from daemon — fetch all values before locking.
     if let Ok(proxy) = HeadsetProxy::new(&conn).await {
         if let Ok(connected) = proxy.connected().await {
+            let (
+                battery_pct,
+                eq_preset,
+                sidetone,
+                thx_enabled,
+                anc_enabled,
+                anc_level,
+                power_savings,
+            ) = if connected {
+                (
+                    proxy.battery_percentage().await.unwrap_or(0),
+                    proxy.eq_preset().await.unwrap_or(0),
+                    proxy.sidetone().await.unwrap_or(0),
+                    proxy.thx_enabled().await.unwrap_or(false),
+                    proxy.anc_enabled().await.unwrap_or(false),
+                    proxy.anc_level().await.unwrap_or(1),
+                    proxy.power_savings_minutes().await.unwrap_or(0),
+                )
+            } else {
+                (0, 0, 0, false, false, 0, 0)
+            };
             let mut s = state.lock().unwrap();
             s.connected = connected;
             if connected {
-                s.battery_pct = proxy.battery_percentage().await.unwrap_or(0);
-                s.eq_preset = proxy.eq_preset().await.unwrap_or(0);
-                s.sidetone = proxy.sidetone().await.unwrap_or(0);
-                s.thx_enabled = proxy.thx_enabled().await.unwrap_or(false);
-                s.anc_enabled = proxy.anc_enabled().await.unwrap_or(false);
-                s.anc_level = proxy.anc_level().await.unwrap_or(1);
-                s.power_savings = proxy.power_savings_minutes().await.unwrap_or(0);
+                s.battery_pct = battery_pct;
+                s.eq_preset = eq_preset;
+                s.sidetone = sidetone;
+                s.thx_enabled = thx_enabled;
+                s.anc_enabled = anc_enabled;
+                s.anc_level = anc_level;
+                s.power_savings = power_savings;
             }
         }
     }
