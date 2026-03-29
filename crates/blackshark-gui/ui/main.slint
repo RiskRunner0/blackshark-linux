@@ -47,7 +47,7 @@ component TabButton inherits Rectangle {
 // Device tab
 // ---------------------------------------------------------------------------
 
-component DeviceTab inherits VerticalBox {
+component DeviceTab inherits ScrollView {
     in property <bool>       connected;
     in property <int>        battery-pct;
     in property <bool>       charging;
@@ -60,6 +60,8 @@ component DeviceTab inherits VerticalBox {
     callback set-anc(bool, int);
     callback set-power-savings(int);
 
+    VerticalBox {
+    width: parent.viewport-width;
     padding: 24px;
     spacing: 16px;
 
@@ -149,20 +151,21 @@ component DeviceTab inherits VerticalBox {
         }
     }
 
-    // Spacer
-    Rectangle { vertical-stretch: 1; }
+    } // VerticalBox
 }
 
 // ---------------------------------------------------------------------------
 // Mic tab
 // ---------------------------------------------------------------------------
 
-component MicTab inherits VerticalBox {
+component MicTab inherits ScrollView {
     in property <bool> connected;
     in property <int>  sidetone;
 
     callback set-sidetone(int);
 
+    VerticalBox {
+    width: parent.viewport-width;
     padding: 24px;
     spacing: 16px;
 
@@ -193,18 +196,20 @@ component MicTab inherits VerticalBox {
         }
     }
 
-    Rectangle { vertical-stretch: 1; }
+    } // VerticalBox
 }
 
 // ---------------------------------------------------------------------------
 // Audio tab
 // ---------------------------------------------------------------------------
 
-component AudioTab inherits VerticalBox {
+component AudioTab inherits ScrollView {
     in property <bool> connected;
     in property <int>  eq-preset;
     callback set-eq(int);
 
+    VerticalBox {
+    width: parent.viewport-width;
     padding: 24px;
     spacing: 16px;
 
@@ -244,14 +249,14 @@ component AudioTab inherits VerticalBox {
         }
     }
 
-    Rectangle { vertical-stretch: 1; }
+    } // VerticalBox
 }
 
 // ---------------------------------------------------------------------------
 // Routing tab
 // ---------------------------------------------------------------------------
 
-component RoutingTab inherits VerticalBox {
+component RoutingTab inherits ScrollView {
     in property <bool>           connected;
     in property <[SinkInputRow]> streams;
     in property <[RouteRule]>    rules;
@@ -262,6 +267,8 @@ component RoutingTab inherits VerticalBox {
     callback refresh();
     callback set-game-chat-mix(int);
 
+    VerticalBox {
+    width: parent.viewport-width;
     padding: 24px;
     spacing: 16px;
 
@@ -381,7 +388,7 @@ component RoutingTab inherits VerticalBox {
         }
     }
 
-    Rectangle { vertical-stretch: 1; }
+    } // VerticalBox
 }
 
 // ---------------------------------------------------------------------------
@@ -405,11 +412,13 @@ component StubTab inherits VerticalBox {
 // Advanced tab
 // ---------------------------------------------------------------------------
 
-component AdvancedTab inherits VerticalBox {
+component AdvancedTab inherits ScrollView {
     in property <bool> sinks-active;
     callback teardown-sinks();
     callback rebuild-sinks();
 
+    VerticalBox {
+    width: parent.viewport-width;
     padding: 24px;
     spacing: 16px;
 
@@ -445,7 +454,7 @@ component AdvancedTab inherits VerticalBox {
         }
     }
 
-    Rectangle { vertical-stretch: 1; }
+    } // VerticalBox
 }
 
 // ---------------------------------------------------------------------------
