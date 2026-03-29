@@ -222,6 +222,46 @@ impl Tray for BlacksharkTray {
             items.push(MenuItem::Separator);
         }
 
+        items.push(MenuItem::SubMenu(SubMenu {
+            label:   "Daemon".into(),
+            submenu: vec![
+                MenuItem::Standard(StandardItem {
+                    label:    "Start".into(),
+                    activate: Box::new(|tray: &mut Self| {
+                        tray.rt.spawn(async {
+                            let _ = tokio::process::Command::new("systemctl")
+                                .args(["--user", "start", "blacksharkd"])
+                                .status().await;
+                        });
+                    }),
+                    ..Default::default()
+                }),
+                MenuItem::Standard(StandardItem {
+                    label:    "Stop".into(),
+                    activate: Box::new(|tray: &mut Self| {
+                        tray.rt.spawn(async {
+                            let _ = tokio::process::Command::new("systemctl")
+                                .args(["--user", "stop", "blacksharkd"])
+                                .status().await;
+                        });
+                    }),
+                    ..Default::default()
+                }),
+                MenuItem::Standard(StandardItem {
+                    label:    "Restart".into(),
+                    activate: Box::new(|tray: &mut Self| {
+                        tray.rt.spawn(async {
+                            let _ = tokio::process::Command::new("systemctl")
+                                .args(["--user", "restart", "blacksharkd"])
+                                .status().await;
+                        });
+                    }),
+                    ..Default::default()
+                }),
+            ],
+            ..Default::default()
+        }));
+
         items.push(MenuItem::Standard(StandardItem {
             label:    "Quit".into(),
             activate: Box::new(|_| std::process::exit(0)),
