@@ -269,6 +269,7 @@ component AudioTab inherits ScrollView {
 
 component RoutingTab inherits ScrollView {
     in property <bool>           connected;
+    in property <bool>           pipewire-enabled;
     in property <[SinkInputRow]> streams;
     in property <[RouteRule]>    rules;
     in property <int>            game-chat-mix;
@@ -284,8 +285,25 @@ component RoutingTab inherits ScrollView {
     spacing: 16px;
     alignment: start;
 
+    if !pipewire-enabled: VerticalBox {
+        spacing: 8px;
+        Text {
+            text: "PipeWire routing is disabled.";
+            color: Palette.foreground;
+            font-size: 14px;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: "Enable it in the Advanced tab to use game/chat mix and per-app routing.";
+            color: Palette.foreground;
+            font-size: 12px;
+            horizontal-alignment: center;
+            wrap: word-wrap;
+        }
+    }
+
     // Game / Chat mix
-    if connected: GroupBox {
+    if pipewire-enabled && connected: GroupBox {
         title: "Game / Chat Mix";
         VerticalBox {
             spacing: 8px;
@@ -312,7 +330,7 @@ component RoutingTab inherits ScrollView {
     }
 
     // Active streams
-    GroupBox {
+    if pipewire-enabled: GroupBox {
         title: "Active Audio Streams";
         VerticalBox {
             spacing: 8px;
@@ -367,7 +385,7 @@ component RoutingTab inherits ScrollView {
     }
 
     // Saved rules
-    GroupBox {
+    if pipewire-enabled: GroupBox {
         title: "Saved Rules";
         VerticalBox {
             spacing: 6px;
@@ -410,19 +428,42 @@ component RoutingTab inherits ScrollView {
 component AdvancedTab inherits ScrollView {
     in property <bool>                    sinks-active;
     in property <string>                  daemon-status;  // "active", "inactive", "failed", ...
-    in property <[LogLine]>  log-lines;
+    in property <[LogLine]>               log-lines;
+    in-out property <bool>                pipewire-enabled;
 
     callback teardown-sinks();
     callback rebuild-sinks();
     callback start-daemon();
     callback stop-daemon();
     callback restart-daemon();
+    callback toggle-pipewire(bool);
 
     VerticalBox {
     width: parent.viewport-width;
     padding: 24px;
     spacing: 16px;
     alignment: start;
+
+    GroupBox {
+        title: "PipeWire Routing (Experimental)";
+        VerticalBox {
+            spacing: 12px;
+            Text {
+                text: "Creates virtual game and chat sinks and routes app audio between them. May cause audio issues — disable if things go wrong.";
+                color: Palette.foreground;
+                font-size: 11px;
+                wrap: word-wrap;
+            }
+            HorizontalBox {
+                spacing: 8px;
+                Text { text: "Enable"; color: Palette.foreground; vertical-alignment: center; }
+                Switch {
+                    checked <=> pipewire-enabled;
+                    toggled => { toggle-pipewire(self.checked); }
+                }
+            }
+        }
+    }
 
     GroupBox {
         title: "Daemon (blacksharkd)";
@@ -459,7 +500,7 @@ component AdvancedTab inherits ScrollView {
         }
     }
 
-    GroupBox {
+    if pipewire-enabled: GroupBox {
         title: "PipeWire Sinks";
         VerticalBox {
             spacing: 12px;
@@ -535,9 +576,10 @@ export component MainWindow inherits Window {
 
     in property <[SinkInputRow]> streams;
     in property <[RouteRule]>   rules;
-    in property <bool>                    sinks-active;
-    in property <string>                  daemon-status;
-    in property <[LogLine]>  log-lines;
+    in property <bool>        sinks-active;
+    in property <string>      daemon-status;
+    in property <[LogLine]>   log-lines;
+    in-out property <bool>    pipewire-enabled;
 
     // Callbacks → Rust
     callback set-eq(int);
@@ -554,6 +596,7 @@ export component MainWindow inherits Window {
     callback start-daemon();
     callback stop-daemon();
     callback restart-daemon();
+    callback toggle-pipewire(bool);
 
     HorizontalBox {
         padding: 0;
@@ -621,10 +664,11 @@ export component MainWindow inherits Window {
             horizontal-stretch: 1;
         }
         if active-tab == 3: RoutingTab {
-            connected:      connected;
-            streams:        streams;
-            rules:          rules;
-            game-chat-mix:  game-chat-mix;
+            connected:        connected;
+            streams:          streams;
+            rules:            rules;
+            game-chat-mix:    game-chat-mix;
+            pipewire-enabled: pipewire-enabled;
             set-route(id, r)       => { set-route(id, r); }
             remove-rule(name)      => { remove-rule(name); }
             refresh()              => { refresh-streams(); }
@@ -635,11 +679,13 @@ export component MainWindow inherits Window {
             sinks-active:     sinks-active;
             daemon-status:    daemon-status;
             log-lines:        log-lines;
+            pipewire-enabled <=> pipewire-enabled;
             teardown-sinks()  => { teardown-sinks(); }
             rebuild-sinks()   => { rebuild-sinks(); }
             start-daemon()    => { start-daemon(); }
             stop-daemon()     => { stop-daemon(); }
             restart-daemon()  => { restart-daemon(); }
+            toggle-pipewire(en) => { toggle-pipewire(en); }
             horizontal-stretch: 1;
         }
     }

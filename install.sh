@@ -27,8 +27,7 @@ die()   { echo -e "${RED}error: $*${NC}" >&2; exit 1; }
 
 info "Checking dependencies"
 
-command -v cargo   >/dev/null 2>&1 || die "cargo not found — install Rust from https://rustup.rs"
-command -v pactl   >/dev/null 2>&1 || die "pactl not found — install pipewire-pulse or pulseaudio-utils"
+command -v cargo     >/dev/null 2>&1 || die "cargo not found — install Rust from https://rustup.rs"
 command -v systemctl >/dev/null 2>&1 || die "systemctl not found — this installer requires systemd"
 
 # Warn if the user is not in the 'users' group (needed for the udev rule).

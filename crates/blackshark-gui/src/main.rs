@@ -1,7 +1,7 @@
 mod pipewire;
 
 use std::collections::{HashMap, VecDeque};
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
@@ -104,6 +104,7 @@ async fn main() -> Result<()> {
     let modules: Arc<Mutex<Vec<u32>>>                    = Arc::new(Mutex::new(Vec::new()));
     let rules:   Arc<Mutex<HashMap<String, String>>>     = Arc::new(Mutex::new(HashMap::new()));
     let current_mix: Arc<AtomicU8>                       = Arc::new(AtomicU8::new(50));
+    let pipewire_enabled: Arc<AtomicBool>                = Arc::new(AtomicBool::new(false));
 
     // Load initial state from daemon.
     if let Ok(proxy) = HeadsetProxy::new(&conn).await {
@@ -118,11 +119,6 @@ async fn main() -> Result<()> {
                 window.set_anc_enabled(proxy.anc_enabled().await.unwrap_or(false));
                 window.set_anc_level(proxy.anc_level().await.unwrap_or(1) as i32);
                 window.set_power_savings(proxy.power_savings_minutes().await.unwrap_or(0) as i32);
-
-                let new_mods = setup_sinks(50).await;
-                let active = !new_mods.is_empty();
-                modules.lock().unwrap().extend(new_mods);
-                window.set_sinks_active(active);
             }
         }
     }
@@ -311,10 +307,11 @@ async fn main() -> Result<()> {
     // Background task: watch D-Bus signals and update UI.
     // Also manages PipeWire sink lifecycle on connect/disconnect.
     {
-        let window_weak  = window.as_weak();
-        let conn         = conn.clone();
-        let modules      = modules.clone();
-        let current_mix  = current_mix.clone();
+        let window_weak      = window.as_weak();
+        let conn             = conn.clone();
+        let modules          = modules.clone();
+        let current_mix      = current_mix.clone();
+        let pipewire_enabled = pipewire_enabled.clone();
         tokio::spawn(async move {
             use futures_util::StreamExt;
             let Ok(proxy) = HeadsetProxy::new(&conn).await else { return };
@@ -350,29 +347,31 @@ async fn main() -> Result<()> {
                                 if let Some(win) = w.upgrade() { win.set_connected(val); }
                             }).ok();
 
-                            let has_modules = !modules.lock().unwrap().is_empty();
-                            match (has_modules, val) {
-                                (false, true) => {
-                                    let mix = current_mix.load(Ordering::Relaxed);
-                                    let new_mods = setup_sinks(mix).await;
-                                    let active = !new_mods.is_empty();
-                                    modules.lock().unwrap().extend(new_mods);
-                                    let w = window_weak.clone();
-                                    slint::invoke_from_event_loop(move || {
-                                        if let Some(win) = w.upgrade() { win.set_sinks_active(active); }
-                                    }).ok();
-                                }
-                                (true, false) => {
-                                    let mods: Vec<u32> = modules.lock().unwrap().drain(..).collect();
-                                    for id in mods {
-                                        pipewire::unload_module(id).await;
+                            if pipewire_enabled.load(Ordering::Relaxed) {
+                                let has_modules = !modules.lock().unwrap().is_empty();
+                                match (has_modules, val) {
+                                    (false, true) => {
+                                        let mix = current_mix.load(Ordering::Relaxed);
+                                        let new_mods = setup_sinks(mix).await;
+                                        let active = !new_mods.is_empty();
+                                        modules.lock().unwrap().extend(new_mods);
+                                        let w = window_weak.clone();
+                                        slint::invoke_from_event_loop(move || {
+                                            if let Some(win) = w.upgrade() { win.set_sinks_active(active); }
+                                        }).ok();
                                     }
-                                    let w = window_weak.clone();
-                                    slint::invoke_from_event_loop(move || {
-                                        if let Some(win) = w.upgrade() { win.set_sinks_active(false); }
-                                    }).ok();
+                                    (true, false) => {
+                                        let mods: Vec<u32> = modules.lock().unwrap().drain(..).collect();
+                                        for id in mods {
+                                            pipewire::unload_module(id).await;
+                                        }
+                                        let w = window_weak.clone();
+                                        slint::invoke_from_event_loop(move || {
+                                            if let Some(win) = w.upgrade() { win.set_sinks_active(false); }
+                                        }).ok();
+                                    }
+                                    _ => {}
                                 }
-                                _ => {}
                             }
                         }
                     }
@@ -518,6 +517,47 @@ async fn main() -> Result<()> {
                 slint::invoke_from_event_loop(move || {
                     if let Some(win) = w.upgrade() { win.set_sinks_active(active); }
                 }).ok();
+            });
+        });
+    }
+
+    // Toggle PipeWire routing on/off.
+    {
+        let modules       = modules.clone();
+        let current_mix   = current_mix.clone();
+        let pipewire_enabled = pipewire_enabled.clone();
+        let window_weak   = window.as_weak();
+        window.on_toggle_pipewire(move |enable| {
+            let modules       = modules.clone();
+            let current_mix   = current_mix.clone();
+            let pipewire_enabled = pipewire_enabled.clone();
+            let window_weak   = window_weak.clone();
+            tokio::spawn(async move {
+                pipewire_enabled.store(enable, Ordering::Relaxed);
+                if enable {
+                    // Set up sinks if not already running.
+                    let already_up = !modules.lock().unwrap().is_empty();
+                    if !already_up {
+                        let mix = current_mix.load(Ordering::Relaxed);
+                        let new_mods = setup_sinks(mix).await;
+                        let active = !new_mods.is_empty();
+                        modules.lock().unwrap().extend(new_mods);
+                        let w = window_weak.clone();
+                        slint::invoke_from_event_loop(move || {
+                            if let Some(win) = w.upgrade() { win.set_sinks_active(active); }
+                        }).ok();
+                    }
+                } else {
+                    // Tear down sinks immediately.
+                    let mods: Vec<u32> = modules.lock().unwrap().drain(..).collect();
+                    for id in mods {
+                        pipewire::unload_module(id).await;
+                    }
+                    let w = window_weak.clone();
+                    slint::invoke_from_event_loop(move || {
+                        if let Some(win) = w.upgrade() { win.set_sinks_active(false); }
+                    }).ok();
+                }
             });
         });
     }
