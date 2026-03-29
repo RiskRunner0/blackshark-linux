@@ -170,6 +170,32 @@ async fn main() -> Result<()> {
         });
     }
 
+    // Auto-routing task: every 3 seconds, move any new sink-inputs that
+    // match a saved rule to their configured sink.
+    {
+        let state_rx = state_rx.clone();
+        let config_rx = config_tx.clone().subscribe();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(ROUTING_INTERVAL);
+            loop {
+                interval.tick().await;
+                if !state_rx.borrow().connected { continue; }
+                let cfg = config_rx.borrow().clone();
+                if cfg.app_routing.is_empty() { continue; }
+
+                let inputs = pipewire::list_sink_inputs().await;
+                for input in &inputs {
+                    let Some(rule) = cfg.app_routing.get(&input.app_name) else { continue };
+                    let target = rule.as_str();
+                    if input.route != target {
+                        let sink = format!("blackshark-{target}");
+                        pipewire::move_sink_input(input.id, &sink).await;
+                    }
+                }
+            }
+        });
+    }
+
     // Watch state changes and emit D-Bus signals + PropertiesChanged.
     let mut watch_rx = state_rx;
     let conn2 = conn.clone();
@@ -230,30 +256,6 @@ async fn main() -> Result<()> {
             prev = state;
         }
     });
-
-    // Auto-routing task: every 3 seconds, move any new sink-inputs that
-    // match a saved rule to their configured sink.
-    {
-        let config_rx = config_tx.clone().subscribe();
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(ROUTING_INTERVAL);
-            loop {
-                interval.tick().await;
-                let cfg = config_rx.borrow().clone();
-                if cfg.app_routing.is_empty() { continue; }
-
-                let inputs = pipewire::list_sink_inputs().await;
-                for input in &inputs {
-                    let Some(rule) = cfg.app_routing.get(&input.app_name) else { continue };
-                    let target = rule.as_str();
-                    if input.route != target {
-                        let sink = format!("blackshark-{target}");
-                        pipewire::move_sink_input(input.id, &sink).await;
-                    }
-                }
-            }
-        });
-    }
 
     std::future::pending::<()>().await;
     Ok(())
