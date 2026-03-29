@@ -254,14 +254,13 @@ component AudioTab inherits VerticalBox {
                     maximum: 100;
                     value: game-chat-mix;
                     step: 1;
-                    released(v) => { set-game-chat-mix(round(v)); }
+                    changed(v) => { set-game-chat-mix(round(v)); }
                     horizontal-stretch: 1;
                 }
                 Text { text: "Game"; color: Palette.foreground; vertical-alignment: center; }
             }
             Text {
-                text: game-chat-mix == 50 ? "Equal mix" :
-                      game-chat-mix < 50  ? "Chat favored" : "Game favored";
+                text: game-chat-mix + "% Game / " + (100 - game-chat-mix) + "% Chat";
                 color: Palette.accent-background;
                 font-weight: 700;
                 horizontal-alignment: center;
