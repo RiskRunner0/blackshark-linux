@@ -293,6 +293,15 @@ fn restore_config(dev: &HidDevice, config: &Config) {
             warn!("restore eq failed: {e}");
         }
     }
+    if let Err(e) = set_thx(dev, config.thx_enabled) {
+        warn!("restore thx failed: {e}");
+    }
+    if let Err(e) = set_anc(dev, config.anc_enabled, config.anc_level) {
+        warn!("restore anc failed: {e}");
+    }
+    if let Err(e) = set_power_savings(dev, config.power_savings_minutes) {
+        warn!("restore power_savings failed: {e}");
+    }
 }
 
 /// Run `f` with the current device, clearing it on I/O failure.
