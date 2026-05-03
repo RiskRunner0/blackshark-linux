@@ -137,7 +137,7 @@ fn run(
                                     // stale HidDevice handle prevents reconnect detection.
                                     dev = None;
                                     rf_wait_count += 1;
-                                    if rf_wait_count == 1 || rf_wait_count % 6 == 0 {
+                                    if rf_wait_count == 1 || rf_wait_count.is_multiple_of(6) {
                                         info!(attempt = rf_wait_count, error = %e, "waiting for RF link");
                                     }
                                 }
