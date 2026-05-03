@@ -84,6 +84,9 @@ pub fn send(dev: &HidDevice, report: &Report) -> Result<Report> {
 
     match response.status() {
         ResponseStatus::Ok => Ok(response),
-        other => bail!("device returned error status: {other:?} (raw=0x{:02x})", response.as_bytes()[1]),
+        other => bail!(
+            "device returned error status: {other:?} (raw=0x{:02x})",
+            response.as_bytes()[1]
+        ),
     }
 }
