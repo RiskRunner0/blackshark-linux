@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=BlackShark Control
+Comment=Settings and controls for the Razer BlackShark V3 Pro headset
+Exec=blackshark-gui
+Icon=audio-headset
+Categories=AudioVideo;Audio;Settings;HardwareSettings;
+Keywords=razer;blackshark;headset;audio;eq;sidetone;anc;
+StartupNotify=true
