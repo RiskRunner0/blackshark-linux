@@ -92,16 +92,9 @@ All settings are applied immediately and sync back to the tray in real time.
 
 **5. Add the tray to autostart** so it launches on login:
 ```bash
-mkdir -p ~/.config/autostart
-cat > ~/.config/autostart/blackshark-tray.desktop << 'EOF'
-[Desktop Entry]
-Type=Application
-Name=BlackShark Tray
-Exec=blackshark-tray
-Restart=on-failure
-X-KDE-autostart-after=panel
-EOF
+install -m644 pkg/blackshark-tray.desktop ~/.config/autostart/
 ```
+Or on KDE: Settings → Autostart → Add Application → search "BlackShark Tray".
 
 ---
 
@@ -176,9 +169,11 @@ crates/
   blackshark-tray/   ksni system tray
   blackshark-gui/    slint settings GUI
 pkg/
-  99-blackshark.rules   udev rule
-  blacksharkd.service   systemd user unit
-install.sh             one-shot build + install script
+  99-blackshark.rules      udev rule
+  blacksharkd.service      systemd user unit
+  blackshark-gui.desktop   app launcher entry (copy to ~/.local/share/applications/)
+  blackshark-tray.desktop  autostart entry (copy to ~/.config/autostart/)
+install.sh                 one-shot build + install script
 ```
 
 ---
@@ -208,7 +203,7 @@ GitHub Actions runs on every push:
 - `cargo build --all`
 - `cargo test --all`
 
-Security audit runs weekly via `cargo audit`. Release builds for `x86_64` and `aarch64` are produced automatically on version tags.
+Security audit runs weekly via `cargo audit`. Release builds for `x86_64` are produced automatically on version tags.
 
 ---
 
