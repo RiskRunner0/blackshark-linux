@@ -21,13 +21,15 @@ command -v blackshark-ctl >/dev/null && run blackshark-ctl --version
 
 section "usb (Razer devices)"
 lsusb 2>/dev/null | grep -i 1532 || echo "no Razer USB devices found"
-lsusb -d 1532:0577 -v 2>/dev/null | grep -E 'bcdDevice|iProduct|bInterfaceNumber|bInterfaceClass' | sort -u
+for pid in 0577 0a55; do
+    lsusb -d "1532:$pid" -v 2>/dev/null | grep -E 'bcdDevice|iProduct|bInterfaceNumber|bInterfaceClass' | sort -u
+done
 
-section "hidraw nodes for 1532:0577"
+section "hidraw nodes for 1532:0577 / 1532:0a55"
 found=0
 for n in /dev/hidraw*; do
     props=$(udevadm info -q property "$n" 2>/dev/null)
-    grep -q '^ID_MODEL_ID=0577$' <<<"$props" || continue
+    grep -qE '^ID_MODEL_ID=(0577|0a55)$' <<<"$props" || continue
     found=1
     echo "$n iface=$(grep ID_USB_INTERFACE_NUM <<<"$props" | cut -d= -f2)"
     ls -l "$n"

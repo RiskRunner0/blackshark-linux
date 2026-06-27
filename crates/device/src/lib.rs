@@ -7,7 +7,13 @@ use tracing::{debug, info};
 use blackshark_protocol::{Report, ResponseStatus, REPORT_LEN};
 
 const VID: u16 = 0x1532;
-const PID: u16 = 0x0577;
+
+/// Product IDs for the dongle, covering both the PC and Xbox editions —
+/// they share the same proprietary HID protocol.
+const PIDS: &[u16] = &[
+    0x0577, // BlackShark V3 Pro
+    0x0a55, // BlackShark V3 Pro for Xbox
+];
 
 /// Open the BlackShark V3 Pro HID device.
 ///
@@ -20,7 +26,7 @@ pub fn open() -> Result<HidDevice> {
     let mut target = None;
     let mut seen = Vec::new();
     for info in api.device_list() {
-        if info.vendor_id() == VID && info.product_id() == PID {
+        if info.vendor_id() == VID && PIDS.contains(&info.product_id()) {
             let path = info.path().to_string_lossy();
             debug!(
                 interface = info.interface_number(),
@@ -36,7 +42,7 @@ pub fn open() -> Result<HidDevice> {
 
     match target {
         None if seen.is_empty() => bail!(
-            "BlackShark V3 Pro (1532:0577) not visible to hidapi — is the dongle plugged in, \
+            "BlackShark V3 Pro (1532:0577 or 1532:0a55 Xbox) not visible to hidapi — is the dongle plugged in, \
              and does your user have access to /dev/hidraw* (udev rule installed, dongle replugged)?"
         ),
         None => bail!(

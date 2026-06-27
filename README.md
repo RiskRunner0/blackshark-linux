@@ -1,6 +1,6 @@
 # blackshark-ctl
 
-Linux userspace driver for the **Razer BlackShark V3 Pro** wireless headset.
+Linux userspace driver for the **Razer BlackShark V3 Pro** wireless headset (PC and Xbox editions).
 
 Controls sidetone, EQ presets, THX Spatial Audio, Active Noise Cancellation, and power savings — without Razer Synapse or Windows.
 
@@ -227,7 +227,7 @@ install.sh                 one-shot build + install script
 The udev rule grants the `users` group read/write access to the headset's HID interface:
 
 ```
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0577", MODE="0660", GROUP="users"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0577|0a55", TAG+="uaccess", MODE="0660", GROUP="users"
 ```
 
 Make sure your user is in the `users` group (`groups $USER`). If not:
@@ -253,7 +253,7 @@ Security audit runs weekly via `cargo audit`. Release builds for `x86_64` are pr
 
 ## Device info
 
-- USB VID/PID: `0x1532` / `0x0577`
+- USB VID/PID: `0x1532` / `0x0577` (PC edition) or `0x1532` / `0x0a55` (Xbox edition)
 - HID reports: 64 bytes, report ID `0x02`
 - Interface: HID interface 5, endpoint `0x84`
 - Protocol: custom Razer HID (not HID++ or OpenRazer-compatible)
