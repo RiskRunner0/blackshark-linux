@@ -190,7 +190,7 @@ pub async fn cleanup_stale_sinks() {
     }
 }
 
-/// Find the real ALSA sink name for the BlackShark V3 Pro headset.
+/// Find the real ALSA sink name for the BlackShark headset.
 pub async fn find_headset_sink() -> Option<String> {
     let output = Command::new("pactl")
         .args(["list", "sinks", "short"])
@@ -201,7 +201,7 @@ pub async fn find_headset_sink() -> Option<String> {
     let stdout = String::from_utf8(output.stdout).ok()?;
     for line in stdout.lines() {
         let lower = line.to_lowercase();
-        if lower.contains("blackshark_v3") || lower.contains("blackshark v3") {
+        if lower.contains("blackshark") {
             let name = line.split_whitespace().nth(1)?;
             return Some(name.to_owned());
         }

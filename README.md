@@ -1,6 +1,7 @@
 # blackshark-ctl
 
-Linux userspace driver for the **Razer BlackShark V3 Pro** wireless headset (PC and Xbox editions).
+Linux userspace driver for the **Razer BlackShark V3 Pro** (PC and Xbox editions) and
+**Razer BlackShark V2 X HyperSpeed (V2 HS)** wireless headsets.
 Controls sidetone, EQ presets, THX Spatial Audio, ANC and power savings without Razer Synapse or Windows.
 
 ![Device tab showing battery, connection status and audio controls](assets/Device_page.png)
@@ -87,15 +88,65 @@ RUST_LOG=blacksharkd=debug,blackshark_device=debug blacksharkd
 ## How it works
 
 ```
-blackshark-ctl / -tray / -gui ──D-Bus (net.blackshark1, session bus)──> blacksharkd ──hidapi──> dongle (USB)
+blackshark-ctl  (CLI)  ──┐
+blackshark-tray (tray) ──┤  D-Bus: net.blackshark1 (session bus)
+blackshark-gui  (GUI)  ──┘
+                          │
+                    blacksharkd  (systemd user service)
+                          │
+                    /dev/hidraw*  (hidapi)
+                          │
+                    BlackShark headset dongle (USB)
 ```
 
 `blacksharkd` is the only process that touches `/dev/hidraw*`; everything else talks to it over D-Bus.
 Crates live in `crates/` (`protocol`, `device`, `blackshark-client`, `blacksharkd`, and the three front ends).
 
-The udev rule (`pkg/99-blackshark.rules`) matches USB `1532:0577` (PC) and `1532:0a55` (Xbox), tags the
-device `uaccess` and grants the `users` group access. The control interface is HID interface 5
-(64-byte reports, report ID `0x02`) using Razer's custom protocol.
+## Device info and udev
+
+- USB VID: `0x1532` (Razer USA, Ltd)
+- Supported PIDs:
+  - `0x0577` (Razer BlackShark V3 Pro)
+  - `0x0a55` (Razer BlackShark V3 Pro for Xbox)
+  - `0x0565` (Razer BlackShark V2 HS 2.4)
+- HID reports: 64 bytes, report ID `0x02`
+- Interface: HID control interface (interface 5 for V3 Pro, interface 3 for V2 HS)
+- Protocol: custom Razer HID (not HID++ or OpenRazer-compatible)
+
+The udev rule in `pkg/99-blackshark.rules` grants the active local user and members
+of the `users` group read/write access to the headset's HID interface:
+
+```
+# Razer BlackShark V3 Pro (PC and Xbox)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0577|0a55", TAG+="uaccess", MODE="0660", GROUP="users"
+# Razer BlackShark V2 HS 2.4
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0565", TAG+="uaccess", MODE="0660", GROUP="users"
+```
+
+Make sure your user is in the `users` group (`groups $USER`) if your session does not
+receive the `uaccess` ACL:
+
+```bash
+sudo usermod -aG users $USER
+# log out and back in, then re-run install.sh
+```
+
+## Device Support Matrix & Limitations
+
+| Feature | Razer BlackShark V3 Pro | Razer BlackShark V2 HS |
+| :--- | :---: | :---: |
+| **Connection & Battery** | Yes | Yes |
+| **Sidetone (Mic Monitoring)** | Yes | Yes (hardware support, volume can be low) |
+| **Power Savings (Auto Off)** | Yes | Yes |
+| **PipeWire Game/Chat Mix** | Yes | Yes (requires client-side routing) |
+| **Hardware EQ Presets** | Yes | No (dongle returns Timeout status) |
+| **Active Noise Cancellation** | Yes | No (no ANC hardware) |
+| **THX Spatial Audio** | Yes | No (software-only feature) |
+
+> [!NOTE]
+> For headsets with limited or missing hardware EQ support (like the V2 HS), use
+> **EasyEffects** on Linux for custom software equalization. Unsupported hardware settings
+> such as THX or ANC produce a warning instead of disconnecting the V2 HS.
 
 ## License
 

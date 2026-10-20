@@ -22,6 +22,7 @@
 
 #define USB_VENDOR_ID_RAZER                  0x1532
 #define USB_DEVICE_ID_RAZER_BLACKSHARK_V3_PRO 0x0577
+#define USB_DEVICE_ID_RAZER_BLACKSHARK_V2_HS  0x0565
 
 /* HID report format (64 bytes, confirmed from usbmon) */
 #define BLACKSHARK_REPORT_LEN   64
@@ -458,7 +459,7 @@ static int blackshark_probe(struct hid_device *hdev,
 	 * ready to respond during probe). */
 	schedule_delayed_work(&data->battery_work, HZ);
 
-	hid_info(hdev, "Razer BlackShark V3 Pro connected\n");
+	hid_info(hdev, "%s connected\n", hdev->name);
 	return 0;
 
 err_close:
@@ -475,7 +476,7 @@ static void blackshark_remove(struct hid_device *hdev)
 	cancel_delayed_work_sync(&data->battery_work);
 	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
-	hid_info(hdev, "Razer BlackShark V3 Pro disconnected\n");
+	hid_info(hdev, "%s disconnected\n", hdev->name);
 }
 
 /* ---------------------------------------------------------------------------
@@ -485,6 +486,8 @@ static void blackshark_remove(struct hid_device *hdev)
 static const struct hid_device_id blackshark_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_RAZER,
 			 USB_DEVICE_ID_RAZER_BLACKSHARK_V3_PRO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_RAZER,
+			 USB_DEVICE_ID_RAZER_BLACKSHARK_V2_HS) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, blackshark_devices);
@@ -499,5 +502,5 @@ static struct hid_driver blackshark_driver = {
 module_hid_driver(blackshark_driver);
 
 MODULE_AUTHOR("Matt Smith");
-MODULE_DESCRIPTION("HID driver for Razer BlackShark V3 Pro headset");
+MODULE_DESCRIPTION("HID driver for Razer BlackShark wireless headsets");
 MODULE_LICENSE("GPL");

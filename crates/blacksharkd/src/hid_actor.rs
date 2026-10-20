@@ -338,6 +338,8 @@ where
                     warn!("dongle I/O error, closing handle: {e:#}");
                     *dev = None;
                     state_tx.send_modify(|s| s.connected = false);
+                } else if e.downcast_ref::<device::DeviceStatusError>().is_some() {
+                    warn!("headset returned command error: {e}");
                 }
             }
             result
