@@ -12,7 +12,7 @@ path = "src/main.rs"
 blackshark-client = { path = "../blackshark-client" }
 anyhow = "1"
 slint = "1"
-zbus = { version = "4", default-features = false, features = ["tokio"] }
+zbus = { version = "6", default-features = false, features = ["tokio"] }
 tokio = { version = "1", features = ["rt", "macros", "rt-multi-thread", "sync", "process"] }
 serde_json = "1"
 futures-util = "0.3"

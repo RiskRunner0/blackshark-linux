@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 mod config;
 mod dbus;
 mod hid_actor;
@@ -9,9 +10,9 @@ use anyhow::Result;
 use std::collections::HashMap;
 use tokio::sync::{mpsc, watch};
 use tracing::{info, warn};
+use zbus::connection;
 use zbus::fdo::Properties;
-use zbus::zvariant::Value;
-use zbus::ConnectionBuilder;
+use zbus::Variant;
 
 use config::Config;
 use state::SharedState;
@@ -108,9 +109,9 @@ async fn main() -> Result<()> {
         config_tx.clone(),
     );
 
-    let conn = ConnectionBuilder::session()?
-        .name(DBUS_NAME)?
-        .serve_at(DBUS_PATH, iface)?
+    let conn = connection::Builder::session()
+        .name(DBUS_NAME)
+        .serve_at(DBUS_PATH, iface)
         .build()
         .await?;
 
@@ -131,7 +132,7 @@ async fn main() -> Result<()> {
                 .interface::<_, dbus::HeadsetInterface>(DBUS_PATH)
                 .await;
             let Ok(iface_ref) = iface_ref else { continue };
-            let ctxt = iface_ref.signal_context();
+            let ctxt = iface_ref.signal_emitter();
 
             // Battery signal
             if state.connected && state.battery_pct != prev.battery_pct {
@@ -141,45 +142,43 @@ async fn main() -> Result<()> {
             }
 
             // Emit PropertiesChanged for any state that changed.
-            let mut changed: HashMap<&str, &Value<'_>> = HashMap::new();
-            let v_connected = Value::from(state.connected);
-            let v_battery = Value::from(state.battery_pct);
-            let v_sidetone = Value::from(state.sidetone);
-            let v_eq = Value::from(state.eq_preset);
-            let v_anc = Value::from(state.anc_enabled);
-            let v_anc_level = Value::from(state.anc_level);
-            let v_ps = Value::from(state.power_savings_minutes);
-            let v_fw = Value::from(state.firmware_version.as_str());
+            let mut changed: HashMap<&str, Variant<'_>> = HashMap::new();
             if state.connected != prev.connected {
-                changed.insert("Connected", &v_connected);
+                changed.insert("Connected", Variant::from(state.connected));
             }
             if state.battery_pct != prev.battery_pct {
-                changed.insert("BatteryPercentage", &v_battery);
+                changed.insert("BatteryPercentage", Variant::from(state.battery_pct));
             }
             if state.sidetone != prev.sidetone {
-                changed.insert("Sidetone", &v_sidetone);
+                changed.insert("Sidetone", Variant::from(state.sidetone));
             }
             if state.eq_preset != prev.eq_preset {
-                changed.insert("EqPreset", &v_eq);
+                changed.insert("EqPreset", Variant::from(state.eq_preset));
             }
             if state.anc_enabled != prev.anc_enabled {
-                changed.insert("AncEnabled", &v_anc);
+                changed.insert("AncEnabled", Variant::from(state.anc_enabled));
             }
             if state.anc_level != prev.anc_level {
-                changed.insert("AncLevel", &v_anc_level);
+                changed.insert("AncLevel", Variant::from(state.anc_level));
             }
             if state.power_savings_minutes != prev.power_savings_minutes {
-                changed.insert("PowerSavingsMinutes", &v_ps);
+                changed.insert(
+                    "PowerSavingsMinutes",
+                    Variant::from(state.power_savings_minutes),
+                );
             }
             if state.firmware_version != prev.firmware_version {
-                changed.insert("FirmwareVersion", &v_fw);
+                changed.insert(
+                    "FirmwareVersion",
+                    Variant::from(state.firmware_version.as_str()),
+                );
             }
             if !changed.is_empty() {
                 Properties::properties_changed(
                     ctxt,
                     "net.blackshark1.Headset".try_into().unwrap(),
-                    &changed,
-                    &[],
+                    changed,
+                    Cow::Borrowed(&[]),
                 )
                 .await
                 .ok();

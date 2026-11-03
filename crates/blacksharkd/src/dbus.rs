@@ -163,7 +163,7 @@ impl HeadsetInterface {
     /// Emitted when the battery level changes.
     #[zbus(signal)]
     pub async fn battery_changed(
-        signal_ctxt: &zbus::SignalContext<'_>,
+        emitter: &zbus::object_server::SignalEmitter<'_>,
         percentage: u8,
         charging: bool,
     ) -> zbus::Result<()>;
