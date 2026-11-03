@@ -11,7 +11,7 @@ path = "src/main.rs"
 [dependencies]
 blackshark-client = { path = "../blackshark-client" }
 anyhow = "1"
-ksni = "0.2"
+ksni = { version = "0.3", default-features = false, features = ["async-io"] }
 zbus = { version = "6", default-features = false, features = ["tokio"] }
 tokio = { version = "1", features = ["rt", "macros", "rt-multi-thread", "sync"] }
 futures-util = "0.3"

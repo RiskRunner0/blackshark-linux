@@ -1,0 +1,17 @@
+[advisories]
+ignore = [
+    # quick-xml is pulled in only transitively by slint/winit (wayland-scanner at build
+    # time, zbus_xml via accesskit) and parses trusted local XML. Nothing we can bump
+    # until upstream releases; revisit when slint updates.
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+
+    # Unmaintained notices for crates we don't depend on directly. All arrive via
+    # slint 1.18 (and ksni 0.3, which slint also uses); our own crates are on zbus 6,
+    # which absorbed zvariant/zbus_names. Revisit when slint moves to zbus 6 and skrifa.
+    "RUSTSEC-2026-0370", # zvariant 5 (via zbus 5 in slint / ksni)
+    "RUSTSEC-2026-0371", # zbus_names 4 (same)
+    "RUSTSEC-2026-0372", # zvariant_derive 5 (same)
+    "RUSTSEC-2026-0192", # ttf-parser (slint font stack)
+    "RUSTSEC-2025-0141", # bincode (i-slint-compiler, build time only)
+]

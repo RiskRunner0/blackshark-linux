@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 use blackshark_client::{HeadsetProxy, EQ_PRESET_NAMES};
-use ksni::{self, menu::*, Icon, Tray};
+use ksni::{self, menu::*, Icon, Tray, TrayMethods};
 use zbus::Connection;
 
 #[derive(Clone, Debug)]
@@ -396,14 +396,14 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Build tray service and get handle before spawning.
-    let service = ksni::TrayService::new(BlacksharkTray {
+    // Register the tray on the session bus; the handle drives redraws.
+    let handle = BlacksharkTray {
         state: state.clone(),
         conn: conn.clone(),
         rt: tokio::runtime::Handle::current(),
-    });
-    let handle = service.handle();
-    service.spawn();
+    }
+    .spawn()
+    .await?;
 
     // Poll daemon status every 5s so it stays current.
     {
@@ -415,7 +415,7 @@ async fn main() -> Result<()> {
                 interval.tick().await;
                 let status = fetch_daemon_status().await;
                 state3.lock().unwrap().daemon_status = status;
-                handle3.update(|_| {});
+                handle3.update(|_| {}).await;
             }
         });
     }
@@ -444,43 +444,43 @@ async fn main() -> Result<()> {
                         s.battery_pct = args.percentage;
                         s.charging    = args.charging;
                     }
-                    handle.update(|_| {});
+                    handle.update(|_| {}).await;
                 }
                 Some(change) = connected_stream.next() => {
                     if let Ok(val) = change.get().await {
                         state2.lock().unwrap().connected = val;
                     }
-                    handle.update(|_| {});
+                    handle.update(|_| {}).await;
                 }
                 Some(change) = sidetone_stream.next() => {
                     if let Ok(val) = change.get().await {
                         state2.lock().unwrap().sidetone = val;
                     }
-                    handle.update(|_| {});
+                    handle.update(|_| {}).await;
                 }
                 Some(change) = eq_stream.next() => {
                     if let Ok(val) = change.get().await {
                         state2.lock().unwrap().eq_preset = val;
                     }
-                    handle.update(|_| {});
+                    handle.update(|_| {}).await;
                 }
                 Some(change) = anc_stream.next() => {
                     if let Ok(val) = change.get().await {
                         state2.lock().unwrap().anc_enabled = val;
                     }
-                    handle.update(|_| {});
+                    handle.update(|_| {}).await;
                 }
                 Some(change) = anc_level_stream.next() => {
                     if let Ok(val) = change.get().await {
                         state2.lock().unwrap().anc_level = val;
                     }
-                    handle.update(|_| {});
+                    handle.update(|_| {}).await;
                 }
                 Some(change) = ps_stream.next() => {
                     if let Ok(val) = change.get().await {
                         state2.lock().unwrap().power_savings = val;
                     }
-                    handle.update(|_| {});
+                    handle.update(|_| {}).await;
                 }
             }
         }
