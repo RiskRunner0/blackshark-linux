@@ -149,6 +149,7 @@ async fn main() -> Result<()> {
             let v_anc = Value::from(state.anc_enabled);
             let v_anc_level = Value::from(state.anc_level);
             let v_ps = Value::from(state.power_savings_minutes);
+            let v_fw = Value::from(state.firmware_version.as_str());
             if state.connected != prev.connected {
                 changed.insert("Connected", &v_connected);
             }
@@ -169,6 +170,9 @@ async fn main() -> Result<()> {
             }
             if state.power_savings_minutes != prev.power_savings_minutes {
                 changed.insert("PowerSavingsMinutes", &v_ps);
+            }
+            if state.firmware_version != prev.firmware_version {
+                changed.insert("FirmwareVersion", &v_fw);
             }
             if !changed.is_empty() {
                 Properties::properties_changed(

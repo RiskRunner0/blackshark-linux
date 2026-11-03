@@ -102,17 +102,20 @@ fn run(
                                     // First successful battery poll = wireless link established.
                                     device_ready = true;
                                     rf_wait_count = 0;
-                                    let sidetone = query_sidetone(d).ok();
-                                    info!(percentage = b.percentage, sidetone, "headset connected");
+                                    let firmware = query_firmware(d)
+                                        .inspect_err(|e| {
+                                            warn!("firmware version read failed: {e:#}")
+                                        })
+                                        .unwrap_or_default();
+                                    info!(percentage = b.percentage, firmware, "headset connected");
                                     state_tx.send_modify(|s| {
                                         s.connected = true;
                                         s.battery_pct = b.percentage;
                                         s.charging = b.charging;
-                                        if let Some(v) = sidetone {
-                                            s.sidetone = v;
-                                        }
+                                        s.firmware_version = firmware;
                                     });
                                     restore_config(d, &initial_config);
+                                    sync_from_device(d, &initial_config, &state_tx);
                                 } else {
                                     state_tx.send_modify(|s| {
                                         // A failed Set* may have cleared this while the
@@ -245,6 +248,7 @@ fn run(
             HidCommand::ApplyConfig { config } => {
                 if let Some(d) = &dev {
                     restore_config(d, &config);
+                    sync_from_device(d, &config, &state_tx);
                 }
             }
         }
@@ -339,6 +343,48 @@ fn restore_config(dev: &HidDevice, config: &Config) {
     if let Err(e) = set_power_savings(dev, config.power_savings_minutes) {
         warn!("restore power_savings failed: {e}");
     }
+}
+
+/// Read sidetone, ANC and auto power-off back from the headset and publish them,
+/// so D-Bus/`status` show what the device actually has rather than what we sent.
+/// Warns when a value differs from `expected` (a restore that didn't take).
+fn sync_from_device(dev: &HidDevice, expected: &Config, state_tx: &watch::Sender<SharedState>) {
+    let sidetone = query_sidetone(dev)
+        .inspect_err(|e| warn!("sidetone read failed: {e:#}"))
+        .ok();
+    let anc = query_anc(dev)
+        .inspect_err(|e| warn!("anc read failed: {e:#}"))
+        .ok();
+    let power_off = query_power_savings(dev)
+        .inspect_err(|e| warn!("auto power-off read failed: {e:#}"))
+        .ok();
+    debug!(?sidetone, ?anc, ?power_off, "read back device state");
+
+    if sidetone.is_some_and(|v| v != expected.sidetone) {
+        warn!(device = ?sidetone, config = expected.sidetone, "sidetone on device differs from config");
+    }
+    if anc.is_some_and(|(on, lvl)| on != expected.anc_enabled || (on && lvl != expected.anc_level))
+    {
+        warn!(device = ?anc, config_enabled = expected.anc_enabled, config_level = expected.anc_level,
+              "ANC on device differs from config");
+    }
+    if power_off.is_some_and(|v| v != expected.power_savings_minutes) {
+        warn!(device = ?power_off, config = expected.power_savings_minutes,
+              "auto power-off on device differs from config");
+    }
+
+    state_tx.send_modify(|s| {
+        if let Some(v) = sidetone {
+            s.sidetone = v;
+        }
+        if let Some((on, lvl)) = anc {
+            s.anc_enabled = on;
+            s.anc_level = lvl;
+        }
+        if let Some(v) = power_off {
+            s.power_savings_minutes = v;
+        }
+    });
 }
 
 /// Run `f` with the current device, clearing it on I/O failure.
@@ -539,6 +585,50 @@ fn set_eq_preset(dev: &HidDevice, preset: u8) -> Result<()> {
     )?;
 
     Ok(())
+}
+
+fn query_anc(dev: &HidDevice) -> Result<(bool, u8)> {
+    let report = Report::new(0x60, cmd::ANC_GET_CLASS, cmd::ANC_ID, &[0x00, 0x00, 0x00]);
+    let response = device::send(dev, &report)?;
+    let args = response.args();
+    anyhow::ensure!(args.len() >= 2, "anc response too short");
+    anyhow::ensure!(args[0] <= 1, "anc enabled flag out of range: {}", args[0]);
+    anyhow::ensure!(
+        (cmd::ANC_LEVEL_MIN..=cmd::ANC_LEVEL_MAX).contains(&args[1]),
+        "anc level out of range: {}",
+        args[1]
+    );
+    Ok((args[0] == 1, args[1]))
+}
+
+fn query_power_savings(dev: &HidDevice) -> Result<u8> {
+    let report = Report::new(
+        0x60,
+        cmd::POWER_SAVINGS_GET_CLASS,
+        cmd::POWER_SAVINGS_ID,
+        &[0x00, 0x00],
+    );
+    let response = device::send(dev, &report)?;
+    let args = response.args();
+    anyhow::ensure!(!args.is_empty(), "auto power-off response empty");
+    Ok(args[0])
+}
+
+/// Firmware as "1.4.4", or "1.4.4 / 1.3.3" when the two reported components differ.
+fn query_firmware(dev: &HidDevice) -> Result<String> {
+    let report = Report::new(0x60, cmd::FIRMWARE_CLASS, cmd::FIRMWARE_ID, &[0x00; 9]);
+    let response = device::send(dev, &report)?;
+    let args = response.args();
+    anyhow::ensure!(args.len() >= 8, "firmware response too short");
+    let fmt = |v: &[u8]| {
+        if v[3] == 0 {
+            format!("{}.{}.{}", v[0], v[1], v[2])
+        } else {
+            format!("{}.{}.{}.{}", v[0], v[1], v[2], v[3])
+        }
+    };
+    let (a, b) = (fmt(&args[0..4]), fmt(&args[4..8]));
+    Ok(if a == b { a } else { format!("{a} / {b}") })
 }
 
 fn query_sidetone(dev: &HidDevice) -> Result<u8> {

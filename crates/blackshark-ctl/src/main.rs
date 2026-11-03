@@ -134,6 +134,7 @@ struct Status {
     anc_enabled: bool,
     anc_level: u8,
     power_savings_minutes: u8,
+    firmware_version: String,
 }
 
 async fn cmd_status(proxy: &HeadsetProxy<'_>) -> Result<()> {
@@ -145,6 +146,7 @@ async fn cmd_status(proxy: &HeadsetProxy<'_>) -> Result<()> {
         anc_enabled: proxy.anc_enabled().await?,
         anc_level: proxy.anc_level().await?,
         power_savings_minutes: proxy.power_savings_minutes().await?,
+        firmware_version: proxy.firmware_version().await?,
     };
     println!("{}", serde_json::to_string_pretty(&status)?);
     Ok(())

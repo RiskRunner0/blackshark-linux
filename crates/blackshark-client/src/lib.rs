@@ -60,6 +60,10 @@ pub trait Headset {
     #[zbus(property)]
     fn power_savings_minutes(&self) -> zbus::Result<u8>;
 
+    /// Headset firmware version ("1.4.4"); empty until connected.
+    #[zbus(property)]
+    fn firmware_version(&self) -> zbus::Result<String>;
+
     /// Emitted when the battery level changes.
     #[zbus(signal)]
     fn battery_changed(&self, percentage: u8, charging: bool) -> zbus::Result<()>;

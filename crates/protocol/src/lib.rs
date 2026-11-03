@@ -150,9 +150,17 @@ pub mod cmd {
     pub const EDITION_CLASS: u8 = 0x01;
     pub const EDITION_ID: u8 = 0x01;
 
+    /// "Get Headset Firmware Version": class=0x02, id=0x08, 9 arg bytes.
+    /// Reply args hold two 4-byte versions ([1,4,4,0, 1,4,4,0] = 1.4.4 / 1.4.4).
+    /// Synapse labels them version1/version2; which component each is, is unconfirmed.
+    pub const FIRMWARE_CLASS: u8 = 0x02;
+    pub const FIRMWARE_ID: u8 = 0x08;
+
     // Do not send:
     //   0xdf "Set HyperSpeed Mode" (wireless link setting). Previously misidentified
-    //        here as THX Spatial; the real THX command is not yet known.
+    //        here as THX Spatial. THX Spatial appears to be a Windows software
+    //        effect, not a headset command: Synapse drives it through its
+    //        AudioEffectsTHXVN module and a THXV4GameProfiles app.
     //   0x2c is "Get Auto power off Status" (GET of 0xac), not a sidetone read.
 
     /// Active Noise Cancellation toggle + level (confirmed from pcap).
@@ -161,6 +169,8 @@ pub mod cmd {
     /// enabled: 0x00 = off, 0x01 = on
     /// level: 0x01–0x04
     pub const ANC_CLASS: u8 = 0x92;
+    /// GET: class=0x12, id=0x02, args=[0, 0, 0] -> args=[enabled, level].
+    pub const ANC_GET_CLASS: u8 = 0x12;
     pub const ANC_ID: u8 = 0x02;
     pub const ANC_LEVEL_MIN: u8 = 1;
     pub const ANC_LEVEL_MAX: u8 = 4;
@@ -171,5 +181,7 @@ pub mod cmd {
     /// minutes: 0x00 = disabled, 0x0f = 15 min, 0x1e = 30 min,
     ///          0x2d = 45 min, 0x3c = 60 min
     pub const POWER_SAVINGS_CLASS: u8 = 0xac;
+    /// GET: class=0x2c, id=0x01, args=[0, 0] -> args=[minutes] ("Get Auto power off Status").
+    pub const POWER_SAVINGS_GET_CLASS: u8 = 0x2c;
     pub const POWER_SAVINGS_ID: u8 = 0x01;
 }

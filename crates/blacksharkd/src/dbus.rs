@@ -154,6 +154,12 @@ impl HeadsetInterface {
         self.state_rx.borrow().power_savings_minutes
     }
 
+    /// Firmware version read from the headset ("1.4.4"); empty until connected.
+    #[zbus(property)]
+    async fn firmware_version(&self) -> String {
+        self.state_rx.borrow().firmware_version.clone()
+    }
+
     /// Emitted when the battery level changes.
     #[zbus(signal)]
     pub async fn battery_changed(
