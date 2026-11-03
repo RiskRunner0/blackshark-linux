@@ -27,9 +27,6 @@ pub trait Headset {
     /// Set sidetone level (0–15).
     fn set_sidetone(&self, level: u8) -> zbus::Result<()>;
 
-    /// Enable or disable THX Spatial Audio.
-    fn set_thx(&self, enabled: bool) -> zbus::Result<()>;
-
     /// Set Active Noise Cancellation. level must be 1–4.
     fn set_anc(&self, enabled: bool, level: u8) -> zbus::Result<()>;
 
@@ -53,9 +50,6 @@ pub trait Headset {
 
     #[zbus(property)]
     fn eq_preset(&self) -> zbus::Result<u8>;
-
-    #[zbus(property)]
-    fn thx_enabled(&self) -> zbus::Result<bool>;
 
     #[zbus(property)]
     fn anc_enabled(&self) -> zbus::Result<bool>;

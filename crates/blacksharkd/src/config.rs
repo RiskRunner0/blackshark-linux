@@ -12,7 +12,6 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     pub sidetone: u8,
     pub eq_preset: u8,
-    pub thx_enabled: bool,
     pub anc_enabled: bool,
     pub anc_level: u8,             // 1–4
     pub power_savings_minutes: u8, // 0=off, 15/30/45/60
@@ -23,7 +22,6 @@ impl Default for Config {
         Self {
             sidetone: 0,
             eq_preset: 0,
-            thx_enabled: false,
             anc_enabled: false,
             anc_level: 1,
             power_savings_minutes: 0,

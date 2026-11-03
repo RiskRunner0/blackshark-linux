@@ -98,12 +98,16 @@ pub mod cmd {
     /// Note: Synapse exposes a single "Sidetone" slider for this — there is no
     /// separate mic monitoring control on the V3 Pro.
     ///
-    /// GET: class=0x98, id=0x01, args=[0x01, 0x00]   ← 2 arg bytes required
-    /// SET: class=0x99, id=0x01, args=[level, 0x00]  ← 2 arg bytes required
-    pub const SIDETONE_GET_CLASS: u8 = 0x98;
+    /// Command names below are Synapse's own (from its device-module logs).
+    /// GET classes are the SET class with bit 7 cleared (0x99 -> 0x19).
+    ///
+    /// ENABLE: class=0x98, id=0x01, args=[on, 0x00]     "Set Sidetone status" (0/1)
+    /// SET:    class=0x99, id=0x01, args=[level, 0x00]  "Set Sidetone Volume"
+    /// GET:    class=0x19, id=0x01, args=[0x00, 0x00]   "Get Sidetone Volume", args[0]=level
+    pub const SIDETONE_ENABLE_CLASS: u8 = 0x98;
     pub const SIDETONE_SET_CLASS: u8 = 0x99;
+    pub const SIDETONE_GET_CLASS: u8 = 0x19;
     pub const SIDETONE_ID: u8 = 0x01;
-    pub const SIDETONE_GET_ARG: u8 = 0x01;
     pub const SIDETONE_MAX: u8 = 0x0f;
 
     /// EQ — 5-command sequence per preset switch (confirmed from pcap).
@@ -137,18 +141,10 @@ pub mod cmd {
     pub const BATTERY_CLASS: u8 = 0x21;
     pub const BATTERY_ID: u8 = 0x00;
 
-    /// Read current sidetone level (startup/status read, not the slider SET path).
-    /// Response args[0] = current level (0–15).
-    pub const SIDETONE_READ_CLASS: u8 = 0x2c;
-
-    /// THX Spatial Audio toggle (confirmed from pcap).
-    ///
-    /// SET: class=0xdf, id=0x01, args=[mode, 0x00]
-    /// mode: 0x00 = Stereo, 0x01 = THX Spatial Audio
-    pub const THX_CLASS: u8 = 0xdf;
-    pub const THX_ID: u8 = 0x01;
-    pub const THX_STEREO: u8 = 0x00;
-    pub const THX_SPATIAL: u8 = 0x01;
+    // Do not send:
+    //   0xdf "Set HyperSpeed Mode" (wireless link setting). Previously misidentified
+    //        here as THX Spatial; the real THX command is not yet known.
+    //   0x2c is "Get Auto power off Status" (GET of 0xac), not a sidetone read.
 
     /// Active Noise Cancellation toggle + level (confirmed from pcap).
     ///

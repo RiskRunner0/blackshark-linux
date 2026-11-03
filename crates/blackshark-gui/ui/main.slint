@@ -55,12 +55,10 @@ component DeviceTab inherits ScrollView {
     in property <bool>       connected;
     in property <int>        battery-pct;
     in property <bool>       charging;
-    in-out property <bool>   thx-enabled;
     in-out property <bool>   anc-enabled;
     in property <int>        anc-level;
     in property <int>        power-savings;
 
-    callback set-thx(bool);
     callback set-anc(bool, int);
     callback set-power-savings(int);
 
@@ -102,13 +100,6 @@ component DeviceTab inherits ScrollView {
         title: "Audio";
         VerticalBox {
             spacing: 12px;
-            HorizontalBox {
-                Text { text: "THX Spatial Audio"; color: Palette.foreground; vertical-alignment: center; }
-                Switch {
-                    checked <=> thx-enabled;
-                    toggled => { set-thx(self.checked); }
-                }
-            }
             HorizontalBox {
                 Text { text: "Active Noise Cancellation"; color: Palette.foreground; vertical-alignment: center; }
                 Switch {
@@ -580,7 +571,6 @@ export component MainWindow inherits Window {
     in property <int>        eq-preset;
     in property <int>        game-chat-mix;
     in property <int>        sidetone;
-    in-out property <bool>   thx-enabled;
     in-out property <bool>   anc-enabled;
     in property <int>        anc-level;
     in property <int>        power-savings;
@@ -600,7 +590,6 @@ export component MainWindow inherits Window {
     callback set-route(int, string);
     callback remove-rule(string);
     callback refresh-streams();
-    callback set-thx(bool);
     callback set-anc(bool, int);
     callback set-power-savings(int);
     callback teardown-sinks();
@@ -654,11 +643,9 @@ export component MainWindow inherits Window {
             connected:     connected;
             battery-pct:   battery-pct;
             charging:      charging;
-            thx-enabled <=> thx-enabled;
             anc-enabled <=> anc-enabled;
             anc-level:     anc-level;
             power-savings: power-savings;
-            set-thx(v)       => { set-thx(v); }
             set-anc(e, l)    => { set-anc(e, l); }
             set-power-savings(m) => { set-power-savings(m); }
             horizontal-stretch: 1;

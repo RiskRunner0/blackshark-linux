@@ -12,7 +12,6 @@ struct HeadsetState {
     charging: bool,
     eq_preset: u8,
     sidetone: u8,
-    thx_enabled: bool,
     anc_enabled: bool,
     anc_level: u8,
     power_savings: u8,
@@ -27,7 +26,6 @@ impl Default for HeadsetState {
             charging: false,
             eq_preset: 0,
             sidetone: 0,
-            thx_enabled: false,
             anc_enabled: false,
             anc_level: 0,
             power_savings: 0,
@@ -163,22 +161,6 @@ impl Tray for BlacksharkTray {
                         })
                     })
                     .collect(),
-                ..Default::default()
-            }));
-
-            // THX toggle
-            let thx = s.thx_enabled;
-            items.push(MenuItem::Standard(StandardItem {
-                label: format!("THX Spatial: {}", if thx { "On ✓" } else { "Off" }),
-                activate: Box::new(move |tray: &mut Self| {
-                    tray.state.lock().unwrap().thx_enabled = !thx;
-                    let conn = tray.conn.clone();
-                    tray.rt.spawn(async move {
-                        if let Ok(proxy) = HeadsetProxy::new(&conn).await {
-                            let _ = proxy.set_thx(!thx).await;
-                        }
-                    });
-                }),
                 ..Default::default()
             }));
 
@@ -388,34 +370,25 @@ async fn main() -> Result<()> {
     // Load initial state from daemon — fetch all values before locking.
     if let Ok(proxy) = HeadsetProxy::new(&conn).await {
         if let Ok(connected) = proxy.connected().await {
-            let (
-                battery_pct,
-                eq_preset,
-                sidetone,
-                thx_enabled,
-                anc_enabled,
-                anc_level,
-                power_savings,
-            ) = if connected {
-                (
-                    proxy.battery_percentage().await.unwrap_or(0),
-                    proxy.eq_preset().await.unwrap_or(0),
-                    proxy.sidetone().await.unwrap_or(0),
-                    proxy.thx_enabled().await.unwrap_or(false),
-                    proxy.anc_enabled().await.unwrap_or(false),
-                    proxy.anc_level().await.unwrap_or(1),
-                    proxy.power_savings_minutes().await.unwrap_or(0),
-                )
-            } else {
-                (0, 0, 0, false, false, 0, 0)
-            };
+            let (battery_pct, eq_preset, sidetone, anc_enabled, anc_level, power_savings) =
+                if connected {
+                    (
+                        proxy.battery_percentage().await.unwrap_or(0),
+                        proxy.eq_preset().await.unwrap_or(0),
+                        proxy.sidetone().await.unwrap_or(0),
+                        proxy.anc_enabled().await.unwrap_or(false),
+                        proxy.anc_level().await.unwrap_or(1),
+                        proxy.power_savings_minutes().await.unwrap_or(0),
+                    )
+                } else {
+                    (0, 0, 0, false, 0, 0)
+                };
             let mut s = state.lock().unwrap();
             s.connected = connected;
             if connected {
                 s.battery_pct = battery_pct;
                 s.eq_preset = eq_preset;
                 s.sidetone = sidetone;
-                s.thx_enabled = thx_enabled;
                 s.anc_enabled = anc_enabled;
                 s.anc_level = anc_level;
                 s.power_savings = power_savings;
@@ -458,7 +431,6 @@ async fn main() -> Result<()> {
         let mut battery_stream = proxy.receive_battery_changed().await.ok();
         let mut connected_stream = proxy.receive_connected_changed().await;
         let mut sidetone_stream = proxy.receive_sidetone_changed().await;
-        let mut thx_stream = proxy.receive_thx_enabled_changed().await;
         let mut eq_stream = proxy.receive_eq_preset_changed().await;
         let mut anc_stream = proxy.receive_anc_enabled_changed().await;
         let mut anc_level_stream = proxy.receive_anc_level_changed().await;
@@ -483,12 +455,6 @@ async fn main() -> Result<()> {
                 Some(change) = sidetone_stream.next() => {
                     if let Ok(val) = change.get().await {
                         state2.lock().unwrap().sidetone = val;
-                    }
-                    handle.update(|_| {});
-                }
-                Some(change) = thx_stream.next() => {
-                    if let Ok(val) = change.get().await {
-                        state2.lock().unwrap().thx_enabled = val;
                     }
                     handle.update(|_| {});
                 }

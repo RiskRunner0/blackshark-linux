@@ -30,11 +30,6 @@ enum Command {
     },
     /// Query battery level
     Battery,
-    /// Toggle THX Spatial Audio (on/off)
-    Thx {
-        #[arg(value_name = "on|off", value_parser = parse_bool)]
-        enabled: bool,
-    },
     /// Set Active Noise Cancellation
     Anc {
         #[arg(value_name = "on|off", value_parser = parse_bool)]
@@ -100,10 +95,6 @@ async fn main() -> Result<()> {
             let charging = if charging { " (charging)" } else { "" };
             println!("battery: {pct}%{charging}");
         }
-        Command::Thx { enabled } => {
-            proxy.set_thx(enabled).await?;
-            println!("THX Spatial: {}", if enabled { "on" } else { "off" });
-        }
         Command::Anc { enabled, level } => {
             proxy.set_anc(enabled, level).await?;
             println!(
@@ -140,7 +131,6 @@ struct Status {
     battery_percentage: u8,
     eq_preset: u8,
     sidetone: u8,
-    thx_enabled: bool,
     anc_enabled: bool,
     anc_level: u8,
     power_savings_minutes: u8,
@@ -152,7 +142,6 @@ async fn cmd_status(proxy: &HeadsetProxy<'_>) -> Result<()> {
         battery_percentage: proxy.battery_percentage().await?,
         eq_preset: proxy.eq_preset().await?,
         sidetone: proxy.sidetone().await?,
-        thx_enabled: proxy.thx_enabled().await?,
         anc_enabled: proxy.anc_enabled().await?,
         anc_level: proxy.anc_level().await?,
         power_savings_minutes: proxy.power_savings_minutes().await?,

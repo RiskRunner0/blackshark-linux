@@ -122,7 +122,6 @@ async fn main() -> Result<()> {
                 window.set_eq_preset(proxy.eq_preset().await.unwrap_or(0) as i32);
                 window.set_game_chat_mix(50);
                 window.set_sidetone(proxy.sidetone().await.unwrap_or(0) as i32);
-                window.set_thx_enabled(proxy.thx_enabled().await.unwrap_or(false));
                 window.set_anc_enabled(proxy.anc_enabled().await.unwrap_or(false));
                 window.set_anc_level(proxy.anc_level().await.unwrap_or(1) as i32);
                 window.set_power_savings(proxy.power_savings_minutes().await.unwrap_or(0) as i32);
@@ -239,18 +238,6 @@ async fn main() -> Result<()> {
                 }
                 if let Ok(proxy) = HeadsetProxy::new(&conn).await {
                     let _ = proxy.set_sidetone(level as u8).await;
-                }
-            });
-        });
-    }
-
-    {
-        let conn = conn.clone();
-        window.on_set_thx(move |enabled| {
-            let conn = conn.clone();
-            tokio::spawn(async move {
-                if let Ok(proxy) = HeadsetProxy::new(&conn).await {
-                    let _ = proxy.set_thx(enabled).await;
                 }
             });
         });
@@ -382,7 +369,6 @@ async fn main() -> Result<()> {
             let mut connected_stream = proxy.receive_connected_changed().await;
             let mut eq_stream = proxy.receive_eq_preset_changed().await;
             let mut sidetone_stream = proxy.receive_sidetone_changed().await;
-            let mut thx_stream = proxy.receive_thx_enabled_changed().await;
             let mut anc_stream = proxy.receive_anc_enabled_changed().await;
             let mut anc_level_stream = proxy.receive_anc_level_changed().await;
             let mut ps_stream = proxy.receive_power_savings_minutes_changed().await;
@@ -450,14 +436,6 @@ async fn main() -> Result<()> {
                             let w = window_weak.clone();
                             slint::invoke_from_event_loop(move || {
                                 if let Some(win) = w.upgrade() { win.set_sidetone(val as i32); }
-                            }).ok();
-                        }
-                    }
-                    Some(change) = thx_stream.next() => {
-                        if let Ok(val) = change.get().await {
-                            let w = window_weak.clone();
-                            slint::invoke_from_event_loop(move || {
-                                if let Some(win) = w.upgrade() { win.set_thx_enabled(val); }
                             }).ok();
                         }
                     }

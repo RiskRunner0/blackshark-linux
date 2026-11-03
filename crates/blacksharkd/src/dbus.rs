@@ -59,15 +59,6 @@ impl HeadsetInterface {
         Ok(())
     }
 
-    /// Enable or disable THX Spatial Audio. false = Stereo.
-    async fn set_thx(&self, enabled: bool) -> zbus::fdo::Result<()> {
-        let (tx, rx) = oneshot::channel();
-        self.send_cmd(HidCommand::SetThx { enabled, reply: tx }, rx)
-            .await?;
-        self.update_config(|c| c.thx_enabled = enabled);
-        Ok(())
-    }
-
     /// Set Active Noise Cancellation. level = 1–4.
     async fn set_anc(&self, enabled: bool, level: u8) -> zbus::fdo::Result<()> {
         if !(1..=4).contains(&level) {
@@ -146,11 +137,6 @@ impl HeadsetInterface {
     #[zbus(property)]
     async fn eq_preset(&self) -> u8 {
         self.state_rx.borrow().eq_preset
-    }
-
-    #[zbus(property)]
-    async fn thx_enabled(&self) -> bool {
-        self.state_rx.borrow().thx_enabled
     }
 
     #[zbus(property)]

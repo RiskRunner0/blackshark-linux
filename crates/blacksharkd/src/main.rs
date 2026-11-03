@@ -146,7 +146,6 @@ async fn main() -> Result<()> {
             let v_battery = Value::from(state.battery_pct);
             let v_sidetone = Value::from(state.sidetone);
             let v_eq = Value::from(state.eq_preset);
-            let v_thx = Value::from(state.thx_enabled);
             let v_anc = Value::from(state.anc_enabled);
             let v_anc_level = Value::from(state.anc_level);
             let v_ps = Value::from(state.power_savings_minutes);
@@ -161,9 +160,6 @@ async fn main() -> Result<()> {
             }
             if state.eq_preset != prev.eq_preset {
                 changed.insert("EqPreset", &v_eq);
-            }
-            if state.thx_enabled != prev.thx_enabled {
-                changed.insert("ThxEnabled", &v_thx);
             }
             if state.anc_enabled != prev.anc_enabled {
                 changed.insert("AncEnabled", &v_anc);

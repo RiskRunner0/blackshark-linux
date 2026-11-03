@@ -28,10 +28,6 @@ pub enum HidCommand {
     GetBattery {
         reply: oneshot::Sender<Result<BatteryState>>,
     },
-    SetThx {
-        enabled: bool,
-        reply: oneshot::Sender<Result<()>>,
-    },
     SetAnc {
         enabled: bool,
         level: u8,
@@ -171,19 +167,6 @@ fn run(
                 let _ = reply.send(result);
             }
 
-            HidCommand::SetThx { enabled, reply } => {
-                info!(enabled, "set_thx");
-                let result = with_dev(&mut dev, &state_tx, |d| set_thx(d, enabled));
-                match &result {
-                    Ok(()) => {
-                        info!(enabled, "set_thx ok");
-                        state_tx.send_modify(|s| s.thx_enabled = enabled);
-                    }
-                    Err(e) => warn!("set_thx failed: {e}"),
-                }
-                let _ = reply.send(result);
-            }
-
             HidCommand::SetAnc {
                 enabled,
                 level,
@@ -300,7 +283,6 @@ fn is_io_error(e: &anyhow::Error) -> bool {
 fn restore_config(dev: &HidDevice, config: &Config) {
     info!(
         sidetone = config.sidetone,
-        thx = config.thx_enabled,
         anc = config.anc_enabled,
         power_savings = config.power_savings_minutes,
         "restoring config to device"
@@ -313,9 +295,6 @@ fn restore_config(dev: &HidDevice, config: &Config) {
         if let Err(e) = set_eq_preset(dev, config.eq_preset) {
             warn!("restore eq failed: {e}");
         }
-    }
-    if let Err(e) = set_thx(dev, config.thx_enabled) {
-        warn!("restore thx failed: {e}");
     }
     if let Err(e) = set_anc(dev, config.anc_enabled, config.anc_level) {
         warn!("restore anc failed: {e}");
@@ -358,13 +337,14 @@ where
 // ---------------------------------------------------------------------------
 
 fn set_sidetone(dev: &HidDevice, level: u8) -> Result<()> {
-    let get = Report::new(
+    // "Set Sidetone status" = on; Synapse sends this before setting the volume.
+    let enable = Report::new(
         0x60,
-        cmd::SIDETONE_GET_CLASS,
+        cmd::SIDETONE_ENABLE_CLASS,
         cmd::SIDETONE_ID,
-        &[cmd::SIDETONE_GET_ARG, 0x00],
+        &[0x01, 0x00],
     );
-    device::send(dev, &get)?;
+    device::send(dev, &enable)?;
     let set = Report::new(
         0x60,
         cmd::SIDETONE_SET_CLASS,
@@ -393,17 +373,6 @@ fn query_battery(dev: &HidDevice) -> Result<BatteryState> {
         percentage: args[0],
         charging: args[1] != 0x00,
     })
-}
-
-fn set_thx(dev: &HidDevice, enabled: bool) -> Result<()> {
-    let mode = if enabled {
-        cmd::THX_SPATIAL
-    } else {
-        cmd::THX_STEREO
-    };
-    let report = Report::new(0x60, cmd::THX_CLASS, cmd::THX_ID, &[mode, 0x00]);
-    device::send(dev, &report)?;
-    Ok(())
 }
 
 fn set_anc(dev: &HidDevice, enabled: bool, level: u8) -> Result<()> {
@@ -533,7 +502,12 @@ fn set_eq_preset(dev: &HidDevice, preset: u8) -> Result<()> {
 }
 
 fn query_sidetone(dev: &HidDevice) -> Result<u8> {
-    let report = Report::new(0x60, cmd::SIDETONE_READ_CLASS, 0x00, &[0x00]);
+    let report = Report::new(
+        0x60,
+        cmd::SIDETONE_GET_CLASS,
+        cmd::SIDETONE_ID,
+        &[0x00, 0x00],
+    );
     let response = device::send(dev, &report)?;
     let args = response.args();
     anyhow::ensure!(!args.is_empty(), "sidetone response empty");

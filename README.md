@@ -1,13 +1,13 @@
 # blackshark-ctl
 
 Linux userspace driver for the **Razer BlackShark V3 Pro** wireless headset (PC and Xbox editions).
-Controls sidetone, EQ presets, THX Spatial Audio, ANC and power savings without Razer Synapse or Windows.
+Controls sidetone, EQ presets, ANC and power savings without Razer Synapse or Windows.
 
 ![Device tab showing battery, connection status and audio controls](assets/Device_page.png)
 
 ## Features
 
-- Sidetone (0–15), EQ presets (9), THX Spatial Audio, ANC (on/off, level 1–4), power-savings timeout
+- Sidetone (0–15), EQ presets (9), ANC (on/off, level 1–4), power-savings timeout
 - Battery percentage and charging state
 - Settings persist in `~/.config/blackshark/config.toml` and are restored on reconnect
 - System tray, settings GUI and a scriptable CLI (`status --json` for waybar)
@@ -41,7 +41,6 @@ blackshark-ctl status [--json]
 blackshark-ctl battery
 blackshark-ctl sidetone <0-15>
 blackshark-ctl eq <0-8>                       # 0 = Flat
-blackshark-ctl thx <on|off>
 blackshark-ctl anc <on|off> [level 1-4]
 blackshark-ctl power-savings <0|15|30|45|60>  # minutes
 blackshark-ctl monitor                        # stream live changes
