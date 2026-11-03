@@ -141,6 +141,15 @@ pub mod cmd {
     pub const BATTERY_CLASS: u8 = 0x21;
     pub const BATTERY_ID: u8 = 0x00;
 
+    /// Flags byte [9] routing: 0x80 relays the command to the headset, 0x00 addresses
+    /// the dongle itself (matches Synapse's dongle-only commands).
+    pub const FLAGS_DONGLE: u8 = 0x00;
+
+    /// "Get Edition ID" — answered by the dongle itself (send with FLAGS_DONGLE).
+    /// Used as a liveness probe when the headset does not respond.
+    pub const EDITION_CLASS: u8 = 0x01;
+    pub const EDITION_ID: u8 = 0x01;
+
     // Do not send:
     //   0xdf "Set HyperSpeed Mode" (wireless link setting). Previously misidentified
     //        here as THX Spatial; the real THX command is not yet known.

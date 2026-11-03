@@ -51,3 +51,19 @@ run blackshark-ctl status
 
 section "daemon log (last 80 lines)"
 journalctl --user -u blacksharkd -n 80 --no-pager 2>&1
+
+# The service logs at info level; protocol detail only appears at debug level.
+# Run the daemon in the foreground with debug logging for a short window.
+# The service is stopped first (both can't own the D-Bus name or the dongle) and
+# restarted afterwards if it was running.
+section "daemon debug run (15s)"
+if command -v blacksharkd >/dev/null; then
+    was_active=0
+    systemctl --user is-active --quiet blacksharkd && was_active=1
+    (( was_active )) && systemctl --user stop blacksharkd
+    RUST_LOG=blacksharkd=debug,blackshark_device=debug NO_COLOR=1 \
+        timeout 15 blacksharkd 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+    (( was_active )) && systemctl --user start blacksharkd
+else
+    echo "blacksharkd not found on PATH; skipped"
+fi

@@ -128,10 +128,19 @@ fn run(
                                 // else (bad status, odd payload) is the dongle talking to us,
                                 // so keep the handle — and always log it, it's diagnostic.
                                 let io_error = is_io_error(&e);
+                                if !io_error && !is_link_down(&e) {
+                                    warn!("unexpected battery poll response: {e:#}");
+                                }
+                                let attempt = if device_ready { 1 } else { rf_wait_count + 1 };
+                                debug!(attempt, error = %e, "battery poll failed");
+                                // On the first failure and periodically after, ask the dongle
+                                // itself whether it is alive — this separates "headset off /
+                                // not linked" from "dongle stuck" in the log.
+                                if !io_error && (attempt == 1 || attempt % 12 == 0) {
+                                    log_dongle_probe(d, attempt);
+                                }
                                 if io_error {
                                     dev = None;
-                                } else if !is_link_down(&e) {
-                                    warn!("unexpected battery poll response: {e:#}");
                                 }
                                 if device_ready {
                                     warn!("headset disconnected: {e}");
@@ -267,6 +276,34 @@ fn try_open(err_logged: &mut bool) -> Option<HidDevice> {
     }
 }
 
+/// Ask the dongle itself (not the headset) for its edition ID and log the outcome.
+///
+/// Read-only; Synapse sends the same command routinely. The point is the log line:
+/// if the dongle answers, the headset is off/unpaired; if even the dongle is silent,
+/// it is in the stuck state that only a physical replug has been seen to clear.
+fn log_dongle_probe(dev: &HidDevice, attempt: u32) {
+    let report = Report::new_with_flags(
+        0x60,
+        cmd::FLAGS_DONGLE,
+        cmd::EDITION_CLASS,
+        cmd::EDITION_ID,
+        &[0x00, 0x00],
+    );
+    match device::send(dev, &report) {
+        Ok(r) => info!(
+            attempt,
+            edition = r.args().first().copied().unwrap_or(0),
+            "dongle responds, headset does not (headset off, out of range, or not paired to this dongle)"
+        ),
+        Err(e) if is_link_down(&e) => warn!(
+            attempt,
+            "dongle itself is not responding; unplug the dongle for ~10s and plug it back in \
+             (a reboot is not enough, USB power stays on)"
+        ),
+        Err(e) => warn!(attempt, "dongle probe failed: {e:#}"),
+    }
+}
+
 /// True when the error means the dongle is alive but the headset is not linked,
 /// as opposed to an I/O failure on the hidraw handle.
 fn is_link_down(e: &anyhow::Error) -> bool {
@@ -361,8 +398,11 @@ fn query_battery(dev: &HidDevice) -> Result<BatteryState> {
     let args = response.args();
     anyhow::ensure!(args.len() >= 2, "battery response too short");
     // 0xff is the dongle's "no headset linked" sentinel (headset off or out of range).
+    // Still a link-down (NoResponse downcasts through the context), but worded
+    // differently from true silence so logs can tell the two apart.
     if args[0] == 0xff {
-        return Err(device::NoResponse.into());
+        return Err(anyhow::Error::new(device::NoResponse)
+            .context("dongle reports no headset linked (battery=0xff)"));
     }
     anyhow::ensure!(
         args[0] <= 100,

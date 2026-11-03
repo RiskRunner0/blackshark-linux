@@ -90,7 +90,13 @@ const BUSY_RETRIES: u32 = 3;
 /// otherwise be read as the reply to the next command.
 fn drain(dev: &HidDevice) {
     let mut buf = [0u8; REPORT_LEN];
-    while matches!(dev.read_timeout(&mut buf, 0), Ok(n) if n > 0) {}
+    while let Ok(n) = dev.read_timeout(&mut buf, 0) {
+        if n == 0 {
+            break;
+        }
+        // A late reply to an earlier timed-out command shows up here — worth seeing.
+        debug!(rx = %hex(&buf[..n.min(16)]), "discarding queued report");
+    }
 }
 
 /// Read until a response to `request` arrives (same class, sub=0x01), skipping
@@ -117,8 +123,17 @@ fn read_response(dev: &HidDevice, request: &Report) -> Result<Option<Report>> {
         if buf[10] == class && buf[11] == 0x01 {
             return Ok(Some(Report::from_bytes(buf)));
         }
-        debug!(class = buf[10], sub = buf[11], "ignoring unrelated report");
+        debug!(rx = %hex(&buf[..16]), "ignoring unrelated report");
     }
+}
+
+/// Space-separated hex of the report header (enough to see status, class, id, first args).
+fn hex(bytes: &[u8]) -> String {
+    bytes
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Send a report and read back the matching response.
@@ -128,10 +143,16 @@ fn read_response(dev: &HidDevice, request: &Report) -> Result<Option<Report>> {
 pub fn send(dev: &HidDevice, report: &Report) -> Result<Report> {
     for _ in 0..BUSY_RETRIES {
         drain(dev);
+        debug!(tx = %hex(&report.as_bytes()[..16]), "send");
         dev.write(report.as_bytes()).context("HID write failed")?;
         let Some(response) = read_response(dev, report)? else {
+            debug!(
+                class = format_args!("{:#04x}", report.as_bytes()[10]),
+                "no response within timeout"
+            );
             return Err(NoResponse.into());
         };
+        debug!(rx = %hex(&response.as_bytes()[..16]), "recv");
         match response.status() {
             ResponseStatus::Ok => return Ok(response),
             ResponseStatus::Busy => std::thread::sleep(Duration::from_millis(150)),
