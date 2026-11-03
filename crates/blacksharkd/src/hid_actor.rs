@@ -119,27 +119,30 @@ fn run(
                                     restore_config(d, &initial_config);
                                 } else {
                                     state_tx.send_modify(|s| {
+                                        // A failed Set* may have cleared this while the
+                                        // link was briefly down; a good poll proves it's back.
+                                        s.connected = true;
                                         s.battery_pct = b.percentage;
                                         s.charging = b.charging;
                                     });
                                 }
                             }
                             Err(e) => {
-                                let link_down = is_link_down(&e);
+                                // Only a hidapi I/O error means the dongle is gone. Anything
+                                // else (bad status, odd payload) is the dongle talking to us,
+                                // so keep the handle — and always log it, it's diagnostic.
+                                let io_error = is_io_error(&e);
+                                if io_error {
+                                    dev = None;
+                                } else if !is_link_down(&e) {
+                                    warn!("unexpected battery poll response: {e:#}");
+                                }
                                 if device_ready {
                                     warn!("headset disconnected: {e}");
                                     device_ready = false;
                                     rf_wait_count = 0;
                                     state_tx.send_modify(|s| s.connected = false);
-                                    if !link_down {
-                                        dev = None;
-                                    }
                                 } else {
-                                    if !link_down {
-                                        // I/O error: the dongle was unplugged. Drop the handle
-                                        // so try_open() fires next Tick.
-                                        dev = None;
-                                    }
                                     rf_wait_count += 1;
                                     if rf_wait_count == 1 || rf_wait_count.is_multiple_of(12) {
                                         info!(
@@ -287,6 +290,11 @@ fn is_link_down(e: &anyhow::Error) -> bool {
     e.downcast_ref::<device::NoResponse>().is_some()
 }
 
+/// True when the hidraw handle itself failed (dongle unplugged) and must be reopened.
+fn is_io_error(e: &anyhow::Error) -> bool {
+    e.chain().any(|c| c.is::<hidapi::HidError>())
+}
+
 /// Apply all config values to the device. Logs but does not fail on errors —
 /// best-effort restore so a single bad command doesn't block the rest.
 fn restore_config(dev: &HidDevice, config: &Config) {
@@ -334,7 +342,7 @@ where
                 if is_link_down(e) {
                     warn!("headset not responding");
                     state_tx.send_modify(|s| s.connected = false);
-                } else if e.chain().any(|c| c.is::<hidapi::HidError>()) {
+                } else if is_io_error(e) {
                     warn!("dongle I/O error, closing handle: {e:#}");
                     *dev = None;
                     state_tx.send_modify(|s| s.connected = false);
