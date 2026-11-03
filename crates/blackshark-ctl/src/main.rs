@@ -71,8 +71,19 @@ async fn main() -> Result<()> {
     let proxy = HeadsetProxy::new(&conn).await?;
 
     // monitor doesn't need the headset to be connected — it just watches
-    if !matches!(cli.command, Command::Monitor) && !proxy.connected().await? {
-        bail!("headset is not connected (is blacksharkd running?)");
+    if !matches!(cli.command, Command::Monitor) {
+        let connected = proxy.connected().await.map_err(|e| {
+            anyhow::anyhow!(
+                "cannot reach blacksharkd on the session bus (is it running? \
+                 systemctl --user status blacksharkd): {e}"
+            )
+        })?;
+        if !connected {
+            bail!(
+                "blacksharkd is running but the headset is not responding \
+                 (powered on and paired? see journalctl --user -u blacksharkd)"
+            );
+        }
     }
 
     match cli.command {
