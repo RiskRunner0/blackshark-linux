@@ -1,5 +1,2 @@
 [advisories]
-# quick-xml is pulled in only transitively by slint/winit (wayland-scanner at build
-# time, zbus_xml via accesskit) and parses trusted local XML. Nothing we can bump
-# until upstream releases; revisit when slint updates.
-ignore = ["RUSTSEC-2026-0194", "RUSTSEC-2026-0195"]
+ignore = []
